@@ -1,10 +1,11 @@
-```yaml
+
 name: Nova Build
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   android:
@@ -23,7 +24,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -67,7 +68,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -105,4 +106,3 @@ jobs:
         with:
           name: Nova-Windows
           path: build/windows/x64/runner/Release/
-```
