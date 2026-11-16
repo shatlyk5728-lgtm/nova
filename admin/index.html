@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nova VPN — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080d18;color:#eef4ff;font-family:Arial,sans-serif}
+main{max-width:1000px;margin:auto;padding:25px}
+h1{color:#55aaff}
+.card{background:#111b2d;border:1px solid #263750;border-radius:15px;padding:20px;margin:18px 0}
+input,button{padding:13px;border-radius:9px;border:1px solid #344966;margin:6px 0;font-size:15px}
+input{background:#091321;color:white;width:100%}
+button{background:#1677ee;color:white;border:0;cursor:pointer;font-weight:bold}
+button:hover{background:#3292ff}
+.server{padding:14px;border-bottom:1px solid #263750}
+small{color:#9eb1cc}
+#status{color:#62d6a4}
+</style>
+</head>
+<body>
+<main>
+<h1>Nova VPN</h1>
+<p>Панель администратора</p>
+
+<div class="card">
+<h2>Вход администратора</h2>
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Пароль">
+<button onclick="login()">Войти</button>
+<p id="status">Ожидание входа...</p>
+</div>
+
+<div id="panel" style="display:none">
+<div class="card">
+<h2>Добавить сервер</h2>
+<input id="name" placeholder="Название, например Paris">
+<input id="country" placeholder="Страна, например France">
+<input id="flag" placeholder="Флаг, например 🇫🇷">
+<input id="ping" type="number" placeholder="Ping (ms)">
+<button onclick="addServer()">Добавить сервер</button>
+</div>
+
+<div class="card">
+<h2>Список серверов</h2>
+<div id="servers">Загрузка...</div>
+</div>
+</div>
+</main>
+
+<script>
+const SUPABASE_URL = "https://joebcmwluizjqrbatpfs.supabase.co";
+const SUPABASE_ANON_KEY = "ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function login(){
+ const email=document.getElementById('email').value.trim();
+ const password=document.getElementById('password').value;
+ const status=document.getElementById('status');
+
+ const {data,error}=await db.auth.signInWithPassword({email,password});
+ if(error){status.textContent=error.message;return;}
+
+ const {data:profile,error:profileError}=await db
+ .from('profiles').select('is_admin').eq('id',data.user.id).single();
+
+ if(profileError || !profile?.is_admin){
+  await db.auth.signOut();
+  status.textContent='У этого аккаунта нет прав администратора.';
+  return;
+ }
+
+ status.textContent='Вход выполнен!';
+ document.getElementById('panel').style.display='block';
+ loadServers();
+}
+
+async function loadServers(){
+ const box=document.getElementById('servers');
+ const {data,error}=await db.from('servers').select('*').order('id');
+
+ if(error){box.textContent='Ошибка: '+error.message;return;}
+ box.innerHTML='';
+
+ data.forEach(server=>{
+  const item=document.createElement('div');
+  item.className='server';
+  const title=document.createElement('strong');
+  title.textContent=(server.flag||'🌐')+' '+(server.name||'Server');
+  const details=document.createElement('small');
+  details.textContent=' · '+(server.country||'')+' · '+(server.ping??'—')+' ms';
+  const remove=document.createElement('button');
+  remove.textContent='Удалить';
+  remove.onclick=()=>deleteServer(server.id);
+  item.append(title,details,document.createElement('br'),remove);
+  box.appendChild(item);
+ });
+}
+
+async function addServer(){
+ const name=document.getElementById('name').value.trim();
+ const country=document.getElementById('country').value.trim();
+ const flag=document.getElementById('flag').value.trim();
+ const ping=Number(document.getElementById('ping').value);
+
+ if(!name || !country){alert('Заполни название и страну');return;}
+
+ const {error}=await db.from('servers').insert({
+  name,country,flag,ping
+ });
+
+ if(error){alert(error.message);return;}
+ alert('Сервер добавлен!');
+ loadServers();
+}
+
+async function deleteServer(id){
+ if(!confirm('Удалить этот сервер?'))return;
+ const {error}=await db.from('servers').delete().eq('id',id);
+ if(error){alert(error.message);return;}
+ loadServers();
+}
+</script>
+</body>
+</html>
