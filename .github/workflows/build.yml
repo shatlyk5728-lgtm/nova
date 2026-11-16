@@ -21,24 +21,29 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Show Flutter and Dart versions
+      - name: Show versions
         run: |
           flutter --version
           dart --version
 
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
+
+      - name: Configure Android repositories
+        shell: bash
+        run: |
+          FILE="android/settings.gradle"
+          if [ -f "$FILE" ]; then
+            if ! grep -q "mavenCentral()" "$FILE"; then
+              sed -i '/repositories {/a\        google()\n        mavenCentral()' "$FILE"
+            fi
+          fi
 
       - name: Set Android app name
         run: sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
@@ -53,19 +58,6 @@ jobs:
 
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
-
-      - name: Disable broken Android Lint analysis
-        run: |
-          mkdir -p "$HOME/.gradle/init.d"
-          cat > "$HOME/.gradle/init.d/disable-lint.gradle" <<'EOF'
-          allprojects {
-              tasks.configureEach {
-                  if (name.startsWith("lintVitalAnalyze")) {
-                      enabled = false
-                  }
-              }
-          }
-          EOF
 
       - name: Build Android APK
         run: flutter build apk --release
@@ -83,32 +75,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Show Flutter and Dart versions
+      - name: Show versions
         run: |
           flutter --version
           dart --version
 
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
-
-      - name: Set Windows app name
-        shell: pwsh
-        run: |
-          $file = "windows/runner/main.cpp"
-          $content = Get-Content $file -Raw
-          $content = $content -replace 'L"(Runner|nova)"', 'L"Nova"'
-          Set-Content $file $content
 
       - name: Generate source icon
         run: |
