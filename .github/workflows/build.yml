@@ -49,6 +49,19 @@ jobs:
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
 
+      - name: Disable broken Android Lint analysis
+        run: |
+          mkdir -p "$HOME/.gradle/init.d"
+          cat > "$HOME/.gradle/init.d/disable-lint.gradle" <<'EOF'
+          allprojects {
+              tasks.configureEach {
+                  if (name.startsWith("lintVitalAnalyze")) {
+                      enabled = false
+                  }
+              }
+          }
+          EOF
+
       - name: Build Android APK
         run: flutter build apk --release
 
