@@ -34,6 +34,16 @@ jobs:
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
 
+      - name: Add JitPack repository to Android build
+        shell: bash
+        run: |
+          for f in android/build.gradle.kts android/build.gradle; do
+            if [ -f "$f" ]; then
+              printf '\nallprojects {\n    repositories {\n        maven { url = uri("https://jitpack.io") }\n    }\n}\n' >> "$f"
+              echo "Patched $f"
+            fi
+          done
+
       - name: Set Android app name
         run: sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
 
