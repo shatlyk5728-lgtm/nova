@@ -1,4 +1,3 @@
-
 name: Nova Build
 
 on:
@@ -35,16 +34,6 @@ jobs:
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
 
-      - name: Configure Android repositories
-        shell: bash
-        run: |
-          FILE="android/settings.gradle"
-          if [ -f "$FILE" ]; then
-            if ! grep -q "mavenCentral()" "$FILE"; then
-              sed -i '/repositories {/a\        google()\n        mavenCentral()' "$FILE"
-            fi
-          fi
-
       - name: Set Android app name
         run: sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
 
@@ -59,8 +48,11 @@ jobs:
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
 
+      - name: Precache Android artifacts
+        run: flutter precache --android
+
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release -v
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
