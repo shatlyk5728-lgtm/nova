@@ -31,18 +31,23 @@ jobs:
           flutter --version
           dart --version
 
-      - name: Create platforms
-        run: flutter create --platforms=android,windows --project-name nova --org com.nova .
-
-      - name: Add JitPack repository to Android build
+      - name: Add JitPack to Gradle settings
         shell: bash
         run: |
-          for f in android/build.gradle.kts android/build.gradle; do
-            if [ -f "$f" ]; then
-              printf '\nallprojects {\n    repositories {\n        maven { url = uri("https://jitpack.io") }\n    }\n}\n' >> "$f"
-              echo "Patched $f"
-            fi
-          done
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/jitpack.gradle <<'EOF'
+          settingsEvaluated { settings ->
+              settings.pluginManagement.repositories {
+                  maven { url 'https://jitpack.io' }
+              }
+              settings.dependencyResolutionManagement.repositories {
+                  maven { url 'https://jitpack.io' }
+              }
+          }
+          EOF
+
+      - name: Create platforms
+        run: flutter create --platforms=android,windows --project-name nova --org com.nova .
 
       - name: Set Android app name
         run: sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
@@ -71,7 +76,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          grep -n -A 15 -E "What went wrong|Could not (resolve|find|get)|FAILURE:" build.log | head -120
+          grep -n -A 15 -E "What went wrong|Could not (resolve|find|get)|FAILURE:|Searched in" build.log | head -120
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
