@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nova VPN — Admin</title>
+<title>Nova VPN — Admin Panel</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
@@ -26,7 +26,7 @@ small{color:#9eb1cc}
 <h1>Nova VPN</h1>
 <p>Панель администратора</p>
 
-<div class="card">
+<div class="card" id="loginCard">
 <h2>Вход администратора</h2>
 <input id="email" type="email" placeholder="Email">
 <input id="password" type="password" placeholder="Пароль">
@@ -47,26 +47,38 @@ small{color:#9eb1cc}
 <div class="card">
 <h2>Список серверов</h2>
 <div id="servers">Загрузка...</div>
+<button onclick="logout()">Выйти</button>
 </div>
 </div>
 </main>
 
 <script>
 const SUPABASE_URL = "https://joebcmwluizjqrbatpfs.supabase.co";
-const SUPABASE_ANON_KEY = "ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY";
+const SUPABASE_ANON_KEY = "sb_publishable_jEd50a0qw2_J17qEVYiLxg_0Mfj68LX";
 
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
 async function login(){
  const email=document.getElementById('email').value.trim();
  const password=document.getElementById('password').value;
  const status=document.getElementById('status');
 
+ status.textContent='Проверяем вход...';
+
  const {data,error}=await db.auth.signInWithPassword({email,password});
- if(error){status.textContent=error.message;return;}
+ if(error){
+  status.textContent='Ошибка входа: '+error.message;
+  return;
+ }
 
  const {data:profile,error:profileError}=await db
- .from('profiles').select('is_admin').eq('id',data.user.id).single();
+ .from('profiles')
+ .select('is_admin')
+ .eq('id',data.user.id)
+ .single();
 
  if(profileError || !profile?.is_admin){
   await db.auth.signOut();
@@ -74,28 +86,43 @@ async function login(){
   return;
  }
 
- status.textContent='Вход выполнен!';
+ document.getElementById('loginCard').style.display='none';
  document.getElementById('panel').style.display='block';
  loadServers();
 }
 
 async function loadServers(){
  const box=document.getElementById('servers');
- const {data,error}=await db.from('servers').select('*').order('id');
+ box.textContent='Загрузка...';
 
- if(error){box.textContent='Ошибка: '+error.message;return;}
+ const {data,error}=await db.from('servers').select('*');
+
+ if(error){
+  box.textContent='Ошибка загрузки: '+error.message;
+  return;
+ }
+
  box.innerHTML='';
+
+ if(!data || data.length===0){
+  box.textContent='Серверов пока нет.';
+  return;
+ }
 
  data.forEach(server=>{
   const item=document.createElement('div');
   item.className='server';
+
   const title=document.createElement('strong');
   title.textContent=(server.flag||'🌐')+' '+(server.name||'Server');
+
   const details=document.createElement('small');
   details.textContent=' · '+(server.country||'')+' · '+(server.ping??'—')+' ms';
+
   const remove=document.createElement('button');
   remove.textContent='Удалить';
   remove.onclick=()=>deleteServer(server.id);
+
   item.append(title,details,document.createElement('br'),remove);
   box.appendChild(item);
  });
@@ -105,24 +132,54 @@ async function addServer(){
  const name=document.getElementById('name').value.trim();
  const country=document.getElementById('country').value.trim();
  const flag=document.getElementById('flag').value.trim();
- const ping=Number(document.getElementById('ping').value);
+ const pingValue=document.getElementById('ping').value;
 
- if(!name || !country){alert('Заполни название и страну');return;}
+ if(!name || !country){
+  alert('Заполни название и страну');
+  return;
+ }
 
- const {error}=await db.from('servers').insert({
-  name,country,flag,ping
- });
+ const server={
+  name:name,
+  country:country
+ };
 
- if(error){alert(error.message);return;}
+ if(flag) server.flag=flag;
+ if(pingValue!=='') server.ping=Number(pingValue);
+
+ const {error}=await db.from('servers').insert(server);
+
+ if(error){
+  alert('Ошибка: '+error.message);
+  return;
+ }
+
  alert('Сервер добавлен!');
+ document.getElementById('name').value='';
+ document.getElementById('country').value='';
+ document.getElementById('flag').value='';
+ document.getElementById('ping').value='';
  loadServers();
 }
 
 async function deleteServer(id){
  if(!confirm('Удалить этот сервер?'))return;
+
  const {error}=await db.from('servers').delete().eq('id',id);
- if(error){alert(error.message);return;}
+
+ if(error){
+  alert('Ошибка удаления: '+error.message);
+  return;
+ }
+
  loadServers();
+}
+
+async function logout(){
+ await db.auth.signOut();
+ document.getElementById('panel').style.display='none';
+ document.getElementById('loginCard').style.display='block';
+ document.getElementById('status').textContent='Ты вышел из аккаунта.';
 }
 </script>
 </body>
