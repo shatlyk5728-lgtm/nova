@@ -64,18 +64,18 @@ jobs:
           # 2. Patch Kotlin DSL: android/app/build.gradle.kts
           APP_KTS="android/app/build.gradle.kts"
           if [ -f "$APP_KTS" ]; then
-            # Fix compileSdk and targetSdk
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/' "$APP_KTS"
+            # compileSdk 37 (Android 17) — требуется зависимостями flutter_sing_box и androidx.core 1.17.0
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/' "$APP_KTS"
             sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/' "$APP_KTS"
-            
+
             # Fix minSdk and add multiDex
             sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23\n        multiDexEnabled = true/' "$APP_KTS"
-            
+
             # Enable core library desugaring in compileOptions
             if ! grep -q "isCoreLibraryDesugaringEnabled" "$APP_KTS"; then
               sed -i '/compileOptions {/a \        isCoreLibraryDesugaringEnabled = true' "$APP_KTS"
             fi
-            
+
             # Add coreLibraryDesugaring dependency
             if ! grep -q "desugar_jdk_libs" "$APP_KTS"; then
               printf '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n' >> "$APP_KTS"
@@ -86,10 +86,10 @@ jobs:
           # 3. Patch Groovy DSL: android/app/build.gradle (if used)
           APP_GROOVY="android/app/build.gradle"
           if [ -f "$APP_GROOVY" ]; then
-            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' "$APP_GROOVY"
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 37/' "$APP_GROOVY"
             sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' "$APP_GROOVY"
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23\n        multiDexEnabled true/' "$APP_GROOVY"
-            
+
             if ! grep -q "coreLibraryDesugaringEnabled" "$APP_GROOVY"; then
               sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' "$APP_GROOVY"
             fi
@@ -103,6 +103,10 @@ jobs:
           if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
             sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
           fi
+
+          # 5. Проверка, что патч применился
+          echo "==> Verification:"
+          grep -n -E "compileSdk|targetSdk|minSdk|isCoreLibraryDesugaringEnabled|coreLibraryDesugaring" "$APP_KTS" 2>/dev/null || true
 
       - name: Generate source icon
         run: |
@@ -120,7 +124,6 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log
-          
 
       - name: Show error summary
         if: failure()
