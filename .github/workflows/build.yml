@@ -64,21 +64,21 @@ jobs:
           # 2. Patch Kotlin DSL: android/app/build.gradle.kts
           APP_KTS="android/app/build.gradle.kts"
           if [ -f "$APP_KTS" ]; then
-            # compileSdk 37 (Android 17) — требуется зависимостями flutter_sing_box и androidx.core 1.17.0
+            # compileSdk 37 — required by flutter_sing_box dependencies and androidx.core 1.17.0
             sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 37/' "$APP_KTS"
             sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/' "$APP_KTS"
 
-            # Fix minSdk and add multiDex
+            # minSdk 23 + multiDex (required by flutter_sing_box)
             sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23\n        multiDexEnabled = true/' "$APP_KTS"
 
-            # Enable core library desugaring in compileOptions
+            # Enable core library desugaring
             if ! grep -q "isCoreLibraryDesugaringEnabled" "$APP_KTS"; then
               sed -i '/compileOptions {/a \        isCoreLibraryDesugaringEnabled = true' "$APP_KTS"
             fi
 
-            # Add coreLibraryDesugaring dependency
+            # desugar_jdk_libs 2.1.5 — minimum required by flutter_sing_box
             if ! grep -q "desugar_jdk_libs" "$APP_KTS"; then
-              printf '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n' >> "$APP_KTS"
+              printf '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")\n}\n' >> "$APP_KTS"
             fi
             echo "Successfully patched $APP_KTS"
           fi
@@ -94,7 +94,7 @@ jobs:
               sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' "$APP_GROOVY"
             fi
             if ! grep -q "desugar_jdk_libs" "$APP_GROOVY"; then
-              printf '\ndependencies {\n    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"\n}\n' >> "$APP_GROOVY"
+              printf '\ndependencies {\n    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"\n}\n' >> "$APP_GROOVY"
             fi
             echo "Successfully patched $APP_GROOVY"
           fi
@@ -104,9 +104,9 @@ jobs:
             sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
           fi
 
-          # 5. Проверка, что патч применился
+          # 5. Verification
           echo "==> Verification:"
-          grep -n -E "compileSdk|targetSdk|minSdk|isCoreLibraryDesugaringEnabled|coreLibraryDesugaring" "$APP_KTS" 2>/dev/null || true
+          grep -n -E "compileSdk|targetSdk|minSdk|isCoreLibraryDesugaringEnabled|coreLibraryDesugaring|jitpack" "$APP_KTS" "$FILE" 2>/dev/null || true
 
       - name: Generate source icon
         run: |
