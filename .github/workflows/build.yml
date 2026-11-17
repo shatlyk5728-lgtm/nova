@@ -40,18 +40,69 @@ jobs:
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
 
-      - name: Patch Android project
+      - name: Patch Android project (Desugaring, SDKs, JitPack)
         shell: bash
         run: |
+          echo "==> Patching Android build files for flutter_sing_box..."
+
+          # 1. Add JitPack repository to root build.gradle.kts (or build.gradle)
           FILE="android/build.gradle.kts"
-          if [ -f "$FILE" ] && ! grep -q "jitpack.io" "$FILE"; then
-            printf '\nallprojects {\n    repositories {\n        maven { url = uri("https://jitpack.io") }\n    }\n}\n' >> "$FILE"
+          if [ -f "$FILE" ]; then
+            if ! grep -q "jitpack.io" "$FILE"; then
+              if grep -q "repositories {" "$FILE"; then
+                sed -i 's|mavenCentral()|mavenCentral()\n        maven { url = uri("https://jitpack.io") }|' "$FILE"
+              else
+                printf '\nallprojects {\n    repositories {\n        google()\n        mavenCentral()\n        maven { url = uri("https://jitpack.io") }\n    }\n}\n' >> "$FILE"
+              fi
+            fi
+          elif [ -f "android/build.gradle" ]; then
+            if ! grep -q "jitpack.io" "android/build.gradle"; then
+              sed -i 's|mavenCentral()|mavenCentral()\n        maven { url "https://jitpack.io" }|' "android/build.gradle"
+            fi
           fi
-          APP="android/app/build.gradle.kts"
-          if [ -f "$APP" ]; then
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$APP"
+
+          # 2. Patch Kotlin DSL: android/app/build.gradle.kts
+          APP_KTS="android/app/build.gradle.kts"
+          if [ -f "$APP_KTS" ]; then
+            # Fix compileSdk and targetSdk
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/' "$APP_KTS"
+            sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/' "$APP_KTS"
+            
+            # Fix minSdk and add multiDex
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23\n        multiDexEnabled = true/' "$APP_KTS"
+            
+            # Enable core library desugaring in compileOptions
+            if ! grep -q "isCoreLibraryDesugaringEnabled" "$APP_KTS"; then
+              sed -i '/compileOptions {/a \        isCoreLibraryDesugaringEnabled = true' "$APP_KTS"
+            fi
+            
+            # Add coreLibraryDesugaring dependency
+            if ! grep -q "desugar_jdk_libs" "$APP_KTS"; then
+              printf '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n' >> "$APP_KTS"
+            fi
+            echo "Successfully patched $APP_KTS"
           fi
-          sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
+
+          # 3. Patch Groovy DSL: android/app/build.gradle (if used)
+          APP_GROOVY="android/app/build.gradle"
+          if [ -f "$APP_GROOVY" ]; then
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' "$APP_GROOVY"
+            sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' "$APP_GROOVY"
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23\n        multiDexEnabled true/' "$APP_GROOVY"
+            
+            if ! grep -q "coreLibraryDesugaringEnabled" "$APP_GROOVY"; then
+              sed -i '/compileOptions {/a \        coreLibraryDesugaringEnabled true' "$APP_GROOVY"
+            fi
+            if ! grep -q "desugar_jdk_libs" "$APP_GROOVY"; then
+              printf '\ndependencies {\n    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"\n}\n' >> "$APP_GROOVY"
+            fi
+            echo "Successfully patched $APP_GROOVY"
+          fi
+
+          # 4. Set App Label in AndroidManifest
+          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+            sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
+          fi
 
       - name: Generate source icon
         run: |
@@ -69,6 +120,7 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log
+          
 
       - name: Show error summary
         if: failure()
