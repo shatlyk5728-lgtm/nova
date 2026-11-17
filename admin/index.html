@@ -1,392 +1,216 @@
-
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nova VPN Admin</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta name="robots" content="noindex, nofollow">
+<title>Nova — Админ-панель</title>
 <style>
+:root{--bg:#070a12;--card:rgba(22,30,50,.72);--card2:#1b2540;--line:#2a3658;--text:#eaf0ff;--muted:#8d9ac0;--a1:#7c5cff;--a2:#2ee6c5;--ok:#35d49a;--warn:#f5a524;--danger:#ff5d73}
+[data-theme=light]{--bg:#f2f5fc;--card:rgba(255,255,255,.88);--card2:#eef2fb;--line:#d5ddf0;--text:#15203b;--muted:#64709a}
 *{box-sizing:border-box}
-body{
- margin:0;background:#080d18;color:#edf4ff;
- font-family:Arial,sans-serif
-}
-main{max-width:1050px;margin:auto;padding:24px}
-h1{color:#55aaff;margin-bottom:5px}
-.subtitle{color:#91a5c3}
-.card{
- background:#111b2d;border:1px solid #263750;
- border-radius:16px;padding:22px;margin:20px 0
-}
-input,select,textarea{
- width:100%;padding:13px;margin:7px 0 15px;
- background:#091321;color:white;
- border:1px solid #344966;border-radius:9px;
- font-size:15px
-}
-textarea{min-height:150px;resize:vertical;font-family:monospace}
-label{color:#b8c9df;font-size:14px}
-button{
- padding:12px 17px;border:0;border-radius:9px;
- background:#1677ee;color:white;font-weight:bold;
- cursor:pointer;margin:5px 4px 5px 0
-}
-button:hover{background:#3292ff}
-button.secondary{background:#293c56}
-button.danger{background:#b73549}
-button:disabled{opacity:.5;cursor:not-allowed}
-.hidden{display:none!important}
-.server{
- background:#0b1525;border:1px solid #263750;
- border-radius:12px;padding:16px;margin:12px 0
-}
-.server-title{font-size:17px;font-weight:bold}
-.meta{color:#9eb1cc;font-size:13px;margin:8px 0}
-.status{color:#62d6a4}
-.error{color:#ff8290}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.pill{background:#193d35;color:#75e0b3;padding:5px 9px;border-radius:20px;font-size:12px}
-.off{background:#4a2630;color:#ff9aa8}
+body{margin:0;min-height:100vh;color:var(--text);font:14px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;
+background:radial-gradient(900px 500px at 8% -10%,rgba(124,92,255,.25),transparent),radial-gradient(800px 500px at 100% 0,rgba(46,230,197,.14),transparent),var(--bg)}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--card);backdrop-filter:blur(14px);position:sticky;top:0;z-index:5}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.logo i{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--a1),var(--a2));display:grid;place-items:center;font-style:normal;color:#fff}
+.wrap{max-width:1040px;margin:22px auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;backdrop-filter:blur(10px)}
+label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px}
+input,select,textarea{width:100%;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;outline:none;transition:.15s}
+input:focus,select:focus,textarea:focus{border-color:var(--a1);box-shadow:0 0 0 3px rgba(124,92,255,.2)}
+textarea{min-height:140px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-size:13.5px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--a1),#5b8cff);transition:.15s}
+button:hover{transform:translateY(-1px);filter:brightness(1.1)}
+button.g{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+button.d{background:var(--danger)}
+button.s{padding:6px 10px;font-size:12px}
+button:disabled{opacity:.5;pointer-events:none}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1 1 200px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat b{display:block;font-size:26px;background:linear-gradient(135deg,var(--a1),var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{color:var(--muted);font-size:12.5px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.bar input{flex:2 1 220px}.bar select{flex:1 1 130px}.bar button{flex:0 0 auto}
+.bulk{display:none;gap:8px;align-items:center;background:var(--card2);border:1px solid var(--a1);border-radius:12px;padding:8px 12px;margin-bottom:12px;flex-wrap:wrap}
+.bulk.on{display:flex}
+.list{display:grid;gap:10px}
+.item{display:grid;grid-template-columns:auto auto 1fr auto;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;transition:.15s}
+.item:hover{border-color:var(--a1)}.item.off{opacity:.55}
+.item input[type=checkbox]{width:18px;height:18px;accent-color:var(--a1)}
+.flag{font-size:30px}
+.info b{display:block;font-size:15px}.info small{color:var(--muted)}
+.cfg{grid-column:2/-1;font:12px ui-monospace,Menlo,monospace;color:var(--muted);background:var(--card2);border-radius:8px;padding:6px 10px;word-break:break-all}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(124,92,255,.16);color:var(--a1);font-weight:700;margin-left:6px;vertical-align:middle}
+.act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.empty{text-align:center;color:var(--muted);padding:50px 0}
+.sk{height:62px;border-radius:14px;background:linear-gradient(90deg,var(--card2),var(--line),var(--card2));background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.mbg.open{display:flex}.modal{width:100%;max-width:620px;max-height:92vh;overflow:auto}
+.modal h2{margin:0}.foot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}.hint.w{color:var(--warn)}
+.ck{display:flex;align-items:center;gap:8px;margin-top:14px}.ck input{width:auto}.ck label{margin:0;color:var(--text)}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:12px;display:none;z-index:20;background:var(--card2);border:1px solid var(--ok);color:var(--ok)}
+#toast.err{border-color:var(--danger);color:var(--danger)}
+.login{max-width:380px;margin:90px auto}.hid{display:none!important}
+@media(max-width:640px){.item{grid-template-columns:auto 1fr}.item .badge-col,.act{grid-column:1/-1;justify-content:flex-start}.cfg{grid-column:1/-1}}
 </style>
 </head>
 <body>
-<main>
-<div class="top">
- <div>
-  <h1>NOVA VPN</h1>
-  <div class="subtitle">Панель управления серверами</div>
- </div>
- <span class="pill">ADMIN PANEL</span>
+<header>
+  <div class="logo"><i>N</i>Nova · Админ</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <small id="ue" class="hid" style="color:var(--muted)"></small>
+    <button class="g s" id="themeBtn" title="Тема">◐</button>
+    <button class="g s hid" id="out">Выйти</button>
+  </div>
+</header>
+
+<div id="lv" class="card login hid">
+  <h2 style="margin:0">Вход</h2>
+  <label>Email</label><input id="em" type="email" autocomplete="username">
+  <label>Пароль</label><input id="pw" type="password" autocomplete="current-password">
+  <div class="ck"><input type="checkbox" id="sp"><label for="sp">Показать пароль</label></div>
+  <div class="foot"><button id="go" style="width:100%">Войти</button></div>
 </div>
 
-<section class="card" id="loginCard">
- <h2>Вход администратора</h2>
- <label>Email</label>
- <input id="email" type="email" placeholder="Email администратора">
- <label>Пароль</label>
- <input id="password" type="password" placeholder="Пароль">
- <button id="loginBtn" onclick="login()">Войти</button>
- <p id="loginStatus"></p>
-</section>
-
-<section id="panel" class="hidden">
- <div class="card">
-  <div class="top">
-   <h2 id="formTitle">Добавить VPN-сервер</h2>
-   <button class="secondary" onclick="logout()">Выйти</button>
+<div id="av" class="wrap hid">
+  <div class="stats" id="stats"></div>
+  <div class="bar">
+    <input id="q" placeholder="Поиск… (нажмите /)">
+    <select id="fp"><option value="">Все протоколы</option><option>vless</option><option>vmess</option><option>shadowsocks</option><option>hysteria2</option><option>trojan</option></select>
+    <select id="fs"><option value="">Любой статус</option><option value="on">Активные</option><option value="off">Отключённые</option></select>
+    <select id="so"><option value="new">Сначала новые</option><option value="name">По названию</option><option value="country">По стране</option></select>
   </div>
-
-  <input type="hidden" id="serverId">
-
-  <label>Название сервера</label>
-  <input id="serverName" placeholder="Например: Paris France">
-
-  <label>Страна</label>
-  <input id="country" placeholder="Например: France">
-
-  <label>Флаг</label>
-  <input id="flag" placeholder="Например: 🇫🇷" value="🌐">
-
-  <label>VPN-протокол</label>
-  <select id="protocol">
-   <option value="VLESS">VLESS</option>
-   <option value="VMess">VMess</option>
-   <option value="Shadowsocks">Shadowsocks (SS)</option>
-   <option value="Hysteria2">Hysteria2</option>
-   <option value="Trojan">Trojan</option>
-   <option value="TUIC">TUIC</option>
-   <option value="WireGuard">WireGuard</option>
-   <option value="Other">Другой</option>
-  </select>
-
-  <label>VPN-конфигурация</label>
-  <textarea id="config" placeholder="Вставь сюда полную VPN-ссылку или конфигурацию..."></textarea>
-
-  <label>
-   <input id="active" type="checkbox" checked
-    style="width:auto;margin-right:8px">
-   Сервер активен
-  </label>
-
-  <div>
-   <button id="saveBtn" onclick="saveServer()">Сохранить сервер</button>
-   <button class="secondary" onclick="resetForm()">Очистить форму</button>
+  <div class="bar">
+    <button id="add">+ Сервер (N)</button>
+    <button class="g" id="imp">Импорт ссылок</button>
+    <button class="g" id="exp">Экспорт JSON</button>
+    <button class="g" onclick="$('ij').click()">Импорт JSON</button>
+    <input type="file" id="ij" accept=".json" class="hid">
+    <label style="margin:0;display:flex;gap:6px;align-items:center;margin-left:auto"><input type="checkbox" id="all" style="width:auto">Выбрать все</label>
   </div>
-  <p id="formStatus"></p>
- </div>
-
- <div class="card">
-  <div class="top">
-   <h2>Мои VPN-серверы</h2>
-   <button class="secondary" onclick="loadServers()">Обновить список</button>
+  <div class="bulk" id="bulk"><b id="bc"></b>
+    <button class="g s" id="b-on">Включить</button><button class="g s" id="b-off">Выключить</button>
+    <button class="d s" id="b-del">Удалить</button><button class="g s" id="b-x">Снять выбор</button>
   </div>
-  <div id="servers">Загрузка серверов...</div>
- </div>
-</section>
-</main>
+  <div class="list" id="list"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+</div>
 
+<div class="mbg" id="fm"><div class="card modal">
+  <h2 id="ft">Новый сервер</h2>
+  <div class="row"><div><label>Название</label><input id="fn" placeholder="Germany #1"></div><div><label>Страна</label><input id="fc" placeholder="Germany"></div></div>
+  <div class="row"><div><label>Флаг</label><input id="ff" maxlength="8" placeholder="🇩🇪"></div>
+  <div><label>Протокол</label><select id="fpr"><option value="vless">VLESS</option><option value="vmess">VMess</option><option value="shadowsocks">Shadowsocks</option><option value="hysteria2">Hysteria2</option><option value="trojan">Trojan</option></select></div></div>
+  <label>Конфигурация (ссылка или JSON) — протокол определится сам</label>
+  <textarea id="fcf" spellcheck="false" placeholder="vless://uuid@host:443?..."></textarea><div id="fh" class="hint"></div>
+  <label>Заметка (видна только админу)</label><input id="fno">
+  <div class="ck"><input type="checkbox" id="fa" checked><label for="fa">Сервер активен</label></div>
+  <div class="foot"><button class="g" data-close>Отмена</button><button id="sv">Сохранить</button></div>
+</div></div>
+
+<div class="mbg" id="im"><div class="card modal">
+  <h2>Импорт ссылок</h2><div class="hint">По одной ссылке на строку. Название берётся из #фрагмента, флаг — из эмодзи в названии.</div>
+  <textarea id="it" style="min-height:220px" placeholder="vless://...#🇩🇪 Germany&#10;trojan://...#🇳🇱 Netherlands"></textarea>
+  <div class="foot"><button class="g" data-close>Отмена</button><button id="ig">Импортировать</button></div>
+</div></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-const SUPABASE_URL = "https://joebcmwluizjqrbatpfs.supabase.co";
-const SUPABASE_ANON_KEY =
- "sb_publishable_jEd50a0qw2_J17qEVYiLxg_0Mfj68LX";
+const SUPABASE_URL='https://YOUR-PROJECT.supabase.co',SUPABASE_ANON_KEY='YOUR_ANON_PUBLIC_KEY'; // только anon-ключ!
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY),T='vpn_server_configs',$=i=>document.getElementById(i);
+let S=[],sel=new Set(),shown=new Set(),eid=null;
+const PR={vless:['vless://'],vmess:['vmess://'],shadowsocks:['ss://'],hysteria2:['hysteria2://','hy2://'],trojan:['trojan://']};
+const FL={germany:'🇩🇪',netherlands:'🇳🇱',usa:'🇺🇸','united states':'🇺🇸',uk:'🇬🇧','united kingdom':'🇬🇧',france:'🇫🇷',finland:'🇫🇮',sweden:'🇸🇪',poland:'🇵🇱',turkey:'🇹🇷',japan:'🇯🇵',singapore:'🇸🇬',canada:'🇨🇦',russia:'🇷🇺',kazakhstan:'🇰🇿',latvia:'🇱🇻',estonia:'🇪🇪',switzerland:'🇨🇭',india:'🇮🇳',uae:'🇦🇪'};
+const RF=/[\u{1F1E6}-\u{1F1FF}]{2}/u;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const detect=t=>{t=t.trim().toLowerCase();for(const[k,v]of Object.entries(PR))if(v.some(p=>t.startsWith(p)))return k;return null};
+const ago=d=>{const s=(new Date(d)-Date.now())/1000,r=new Intl.RelativeTimeFormat('ru',{numeric:'auto'});for(const[u,n]of[['day',86400],['hour',3600],['minute',60]])if(Math.abs(s)>=n)return r.format(Math.round(s/n),u);return 'только что'};
+const now=()=>new Date().toISOString();
+function toast(m,t){const e=$('toast');e.textContent=m;e.className=t||'';e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3200)}
+const scr=v=>{$('lv').classList.toggle('hid',v!=='l');$('av').classList.toggle('hid',v!=='a');$('ue').classList.toggle('hid',v!=='a');$('out').classList.toggle('hid',v!=='a')};
+try{const t=localStorage.getItem('nova-theme');if(t)document.documentElement.dataset.theme=t}catch{}
+$('themeBtn').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('nova-theme',n)}catch{}};
 
-const db = window.supabase.createClient(
- SUPABASE_URL,
- SUPABASE_ANON_KEY
-);
+/* Авторизация */
+async function boot(){const{data:{session}}=await db.auth.getSession();if(!session)return scr('l');
+ const{data}=await db.from('profiles').select('is_admin').eq('id',session.user.id).maybeSingle();
+ if(!data?.is_admin){await db.auth.signOut();toast('Нет прав администратора','err');return scr('l')}
+ $('ue').textContent=session.user.email;scr('a');load()}
+$('go').onclick=async()=>{const{error}=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});if(error)return toast(error.message,'err');boot()};
+$('pw').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
+$('sp').onchange=e=>$('pw').type=e.target.checked?'text':'password';
+$('out').onclick=async()=>{await db.auth.signOut();scr('l')};
 
-let currentUser = null;
+/* Данные и отображение */
+async function load(){const{data,error}=await db.from(T).select('*');if(error)return toast(error.message,'err');S=data||[];sel.clear();render()}
+function view(){const q=$('q').value.trim().toLowerCase(),p=$('fp').value,st=$('fs').value;
+ const r=S.filter(s=>(!q||[s.name,s.country,s.protocol,s.note].some(v=>String(v||'').toLowerCase().includes(q)))&&(!p||s.protocol===p)&&(!st||(st==='on')===s.is_active));
+ const c={new:(a,b)=>b.created_at.localeCompare(a.created_at),name:(a,b)=>a.name.localeCompare(b.name),country:(a,b)=>a.country.localeCompare(b.country)}[$('so').value];return r.sort(c)}
+function render(){
+ const on=S.filter(s=>s.is_active).length;
+ $('stats').innerHTML=[['Всего',S.length],['Активных',on],['Отключённых',S.length-on],['Стран',new Set(S.map(s=>s.country)).size],['Протоколов',new Set(S.map(s=>s.protocol)).size]].map(([l,v])=>`<div class="card stat"><b>${v}</b><span>${l}</span></div>`).join('');
+ const r=view();
+ $('list').innerHTML=r.length?r.map(s=>`<div class="item ${s.is_active?'':'off'}" data-id="${esc(s.id)}">
+  <input type="checkbox" ${sel.has(s.id)?'checked':''}><div class="flag">${esc(s.flag||'🌐')}</div>
+  <div class="info"><b>${esc(s.name)}<span class="badge">${esc(s.protocol)}</span></b><small>${esc(s.country)} · ${s.is_active?'активен':'отключён'} · обновлён ${ago(s.updated_at)}${s.note?' · '+esc(s.note):''}</small></div>
+  <div class="act"><button class="g s" data-a="copy">Копировать</button><button class="g s" data-a="show">${shown.has(s.id)?'Скрыть':'Показать'}</button><button class="g s" data-a="dup">Дубль</button><button class="g s" data-a="edit">Изменить</button><button class="g s" data-a="tg">${s.is_active?'Выкл':'Вкл'}</button><button class="d s" data-a="del">Удалить</button></div>
+  <div class="cfg">${esc(shown.has(s.id)?s.config_text:s.config_text.slice(0,24)+'••••••••••')}</div></div>`).join(''):'<div class="empty">Ничего не найдено</div>';
+ $('bulk').classList.toggle('on',sel.size>0);$('bc').textContent=`Выбрано: ${sel.size}`;$('all').checked=r.length>0&&r.every(s=>sel.has(s.id))}
+['q','fp','fs','so'].forEach(i=>$(i).oninput=render);
+$('all').onchange=e=>{view().forEach(s=>e.target.checked?sel.add(s.id):sel.delete(s.id));render()};
+$('list').onchange=e=>{const id=e.target.closest('.item')?.dataset.id;if(!id)return;e.target.checked?sel.add(id):sel.delete(id);render()};
+$('list').onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;const id=b.closest('.item').dataset.id,s=S.find(x=>x.id===id),a=b.dataset.a;
+ if(a==='copy'){try{await navigator.clipboard.writeText(s.config_text);toast('Скопировано')}catch{toast('Не удалось скопировать','err')}}
+ else if(a==='show'){shown.has(id)?shown.delete(id):shown.add(id);render()}
+ else if(a==='edit')openForm(s);
+ else if(a==='dup'){const{id:_,created_at,updated_at,...c}=s;const{error}=await db.from(T).insert({...c,name:s.name+' (копия)'});error?toast(error.message,'err'):(toast('Дубликат создан'),load())}
+ else if(a==='tg'){const{error}=await db.from(T).update({is_active:!s.is_active,updated_at:now()}).eq('id',id);error?toast(error.message,'err'):load()}
+ else if(a==='del'&&confirm(`Удалить «${s.name}»?`)){const{error}=await db.from(T).delete().eq('id',id);error?toast(error.message,'err'):(toast('Удалено'),load())}};
 
-function statusMessage(id,message,isError=false){
- const el=document.getElementById(id);
- el.textContent=message;
- el.className=isError?'error':'status';
-}
+/* Массовые действия */
+async function bulk(f,m){const{error}=await f([...sel]);if(error)return toast(error.message,'err');toast(m);load()}
+$('b-on').onclick=()=>bulk(i=>db.from(T).update({is_active:true,updated_at:now()}).in('id',i),'Включено');
+$('b-off').onclick=()=>bulk(i=>db.from(T).update({is_active:false,updated_at:now()}).in('id',i),'Выключено');
+$('b-del').onclick=()=>confirm(`Удалить выбранные (${sel.size})?`)&&bulk(i=>db.from(T).delete().in('id',i),'Удалено');
+$('b-x').onclick=()=>{sel.clear();render()};
 
-async function login(){
- const email=document.getElementById('email').value.trim();
- const password=document.getElementById('password').value;
- const btn=document.getElementById('loginBtn');
+/* Форма */
+const closeAll=()=>document.querySelectorAll('.mbg').forEach(m=>m.classList.remove('open'));
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeAll);
+document.querySelectorAll('.mbg').forEach(m=>m.onmousedown=e=>{if(e.target===m)closeAll()});
+function openForm(s){eid=s?s.id:null;$('ft').textContent=s?'Редактирование':'Новый сервер';
+ $('fn').value=s?.name||'';$('fc').value=s?.country||'';$('ff').value=s?.flag||'';$('fpr').value=s?.protocol||'vless';$('fcf').value=s?.config_text||'';$('fno').value=s?.note||'';$('fa').checked=s?s.is_active:true;hint();$('fm').classList.add('open')}
+function hint(){const t=$('fcf').value.trim(),h=$('fh');h.className='hint';if(!t)return h.textContent='';
+ if(/^[\[{]/.test(t)){try{JSON.parse(t);h.textContent='JSON корректный'}catch{h.textContent='Ошибка синтаксиса JSON';h.className='hint w'}return}
+ const ok=detect(t)===$('fpr').value;h.textContent=ok?'Формат соответствует протоколу':'Префикс не совпадает с выбранным протоколом';if(!ok)h.className='hint w'}
+$('fcf').oninput=()=>{const d=detect($('fcf').value);if(d)$('fpr').value=d;hint()};$('fpr').onchange=hint;
+$('fc').onblur=()=>{const f=FL[$('fc').value.trim().toLowerCase()];if(f&&!$('ff').value||$('ff').value==='🌐'&&f)$('ff').value=f};
+$('add').onclick=()=>openForm();
+$('sv').onclick=async()=>{const p={name:$('fn').value.trim(),country:$('fc').value.trim(),flag:$('ff').value.trim()||'🌐',protocol:$('fpr').value,config_text:$('fcf').value.trim(),note:$('fno').value.trim(),is_active:$('fa').checked,updated_at:now()};
+ if(!p.name||!p.country||!p.config_text)return toast('Заполните название, страну и конфигурацию','err');
+ $('sv').disabled=true;const{error}=eid?await db.from(T).update(p).eq('id',eid):await db.from(T).insert(p);$('sv').disabled=false;
+ if(error)return toast(error.message+' (выполнили step2_upgrade.sql?)','err');toast('Сохранено');closeAll();load()};
 
- if(!email || !password){
-  statusMessage('loginStatus','Введи email и пароль.',true);
-  return;
- }
+/* Импорт / экспорт */
+$('imp').onclick=()=>{$('it').value='';$('im').classList.add('open')};
+$('ig').onclick=async()=>{const lines=$('it').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+ const rows=lines.map((l,i)=>{const pr=detect(l);if(!pr)return null;let n='';const h=l.indexOf('#');if(h>0)try{n=decodeURIComponent(l.slice(h+1))}catch{}
+  const fl=(n.match(RF)||[])[0]||'🌐',c=n.replace(RF,'').trim().split(/[\s\-_|#]/)[0]||'Unknown';
+  return{name:n||`${pr} ${i+1}`,country:c,flag:fl,protocol:pr,config_text:l,is_active:true}}).filter(Boolean);
+ if(!rows.length)return toast('Не найдено ни одной корректной ссылки','err');
+ const{error}=await db.from(T).insert(rows);if(error)return toast(error.message,'err');
+ toast(`Импортировано: ${rows.length}`+(lines.length>rows.length?`, пропущено: ${lines.length-rows.length}`:''));closeAll();load()};
+$('exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));a.download=`nova-servers-${now().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};
+$('ij').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const rows=JSON.parse(await f.text()).map(({name,country,flag,protocol,config_text,is_active,note})=>({name,country,flag,protocol,config_text,note,is_active:is_active!==false})).filter(r=>r.name&&r.country&&r.protocol&&r.config_text);
+ const{error}=await db.from(T).insert(rows);if(error)throw error;toast(`Импортировано: ${rows.length}`);load()}catch(x){toast('Ошибка импорта: '+x.message,'err')}e.target.value=''};
 
- btn.disabled=true;
- statusMessage('loginStatus','Проверяем вход...');
-
- try{
-  const {data,error}=await db.auth.signInWithPassword({
-   email,password
-  });
-
-  if(error) throw error;
-
-  const {data:profile,error:profileError}=await db
-   .from('profiles')
-   .select('is_admin')
-   .eq('id',data.user.id)
-   .single();
-
-  if(profileError || profile?.is_admin!==true){
-   await db.auth.signOut();
-   throw new Error('У аккаунта нет прав администратора.');
-  }
-
-  currentUser=data.user;
-  document.getElementById('loginCard').classList.add('hidden');
-  document.getElementById('panel').classList.remove('hidden');
-  await loadServers();
-
- }catch(error){
-  statusMessage('loginStatus','Ошибка: '+error.message,true);
- }finally{
-  btn.disabled=false;
- }
-}
-
-async function logout(){
- await db.auth.signOut();
- currentUser=null;
- document.getElementById('panel').classList.add('hidden');
- document.getElementById('loginCard').classList.remove('hidden');
- document.getElementById('password').value='';
- statusMessage('loginStatus','Ты вышел из аккаунта.');
- resetForm();
-}
-
-function resetForm(){
- document.getElementById('serverId').value='';
- document.getElementById('serverName').value='';
- document.getElementById('country').value='';
- document.getElementById('flag').value='🌐';
- document.getElementById('protocol').value='VLESS';
- document.getElementById('config').value='';
- document.getElementById('active').checked=true;
- document.getElementById('formTitle').textContent='Добавить VPN-сервер';
- document.getElementById('saveBtn').textContent='Сохранить сервер';
- document.getElementById('saveBtn').disabled=false;
- statusMessage('formStatus','');
-}
-
-async function loadServers(){
- const box=document.getElementById('servers');
- box.textContent='Загрузка...';
-
- const {data,error}=await db
-  .from('vpn_server_configs')
-  .select('id,name,country,flag,protocol,is_active,created_at')
-  .order('created_at',{ascending:false});
-
- if(error){
-  box.textContent='Ошибка загрузки: '+error.message;
-  return;
- }
-
- box.replaceChildren();
-
- if(!data || data.length===0){
-  box.textContent='Серверов пока нет. Добавь первый сервер выше.';
-  return;
- }
-
- data.forEach(server=>{
-  const item=document.createElement('div');
-  item.className='server';
-
-  const top=document.createElement('div');
-  top.className='top';
-
-  const title=document.createElement('div');
-  title.className='server-title';
-  title.textContent=(server.flag||'🌐')+' '+server.name;
-
-  const badge=document.createElement('span');
-  badge.className='pill'+(server.is_active?'':' off');
-  badge.textContent=server.is_active?'Активен':'Отключён';
-
-  top.append(title,badge);
-
-  const meta=document.createElement('div');
-  meta.className='meta';
-  meta.textContent=server.country+' · '+server.protocol;
-
-  const edit=document.createElement('button');
-  edit.className='secondary';
-  edit.textContent='Изменить';
-  edit.onclick=()=>editServer(server.id);
-
-  const toggle=document.createElement('button');
-  toggle.className='secondary';
-  toggle.textContent=server.is_active?'Отключить':'Включить';
-  toggle.onclick=()=>toggleServer(server.id,!server.is_active);
-
-  const remove=document.createElement('button');
-  remove.className='danger';
-  remove.textContent='Удалить';
-  remove.onclick=()=>deleteServer(server.id);
-
-  item.append(top,meta,edit,toggle,remove);
-  box.append(item);
- });
-}
-
-async function saveServer(){
- const id=document.getElementById('serverId').value;
- const name=document.getElementById('serverName').value.trim();
- const country=document.getElementById('country').value.trim();
- const flag=document.getElementById('flag').value.trim()||'🌐';
- const protocol=document.getElementById('protocol').value;
- const config=document.getElementById('config').value.trim();
- const is_active=document.getElementById('active').checked;
- const btn=document.getElementById('saveBtn');
-
- if(!name || !country || !config){
-  statusMessage('formStatus','Заполни название, страну и конфигурацию.',true);
-  return;
- }
-
- btn.disabled=true;
- statusMessage('formStatus','Сохраняем сервер...');
-
- const record={
-  name,country,flag,protocol,
-  config_text:config,
-  is_active,
-  updated_at:new Date().toISOString()
- };
-
- try{
-  let result;
-
-  if(id){
-   result=await db
-    .from('vpn_server_configs')
-    .update(record)
-    .eq('id',id);
-  }else{
-   result=await db
-    .from('vpn_server_configs')
-    .insert(record);
-  }
-
-  if(result.error) throw result.error;
-
-  statusMessage('formStatus',id?'Сервер обновлён!':'Сервер сохранён!');
-  resetForm();
-  await loadServers();
-
- }catch(error){
-  statusMessage('formStatus','Ошибка сохранения: '+error.message,true);
- }finally{
-  btn.disabled=false;
- }
-}
-
-async function editServer(id){
- const {data,error}=await db
-  .from('vpn_server_configs')
-  .select('*')
-  .eq('id',id)
-  .single();
-
- if(error){
-  alert('Ошибка: '+error.message);
-  return;
- }
-
- document.getElementById('serverId').value=data.id;
- document.getElementById('serverName').value=data.name||'';
- document.getElementById('country').value=data.country||'';
- document.getElementById('flag').value=data.flag||'🌐';
- document.getElementById('protocol').value=data.protocol||'VLESS';
- document.getElementById('config').value=data.config_text||'';
- document.getElementById('active').checked=data.is_active;
- document.getElementById('formTitle').textContent='Редактировать сервер';
- document.getElementById('saveBtn').textContent='Сохранить изменения';
- window.scrollTo({top:0,behavior:'smooth'});
-}
-
-async function toggleServer(id,active){
- const {error}=await db
-  .from('vpn_server_configs')
-  .update({
-   is_active:active,
-   updated_at:new Date().toISOString()
-  })
-  .eq('id',id);
-
- if(error){
-  alert('Ошибка: '+error.message);
-  return;
- }
-
- await loadServers();
-}
-
-async function deleteServer(id){
- if(!confirm('Точно удалить этот VPN-сервер?'))return;
-
- const {error}=await db
-  .from('vpn_server_configs')
-  .delete()
-  .eq('id',id);
-
- if(error){
-  alert('Ошибка удаления: '+error.message);
-  return;
- }
-
- await loadServers();
-}
-
-db.auth.onAuthStateChange((event,session)=>{
- if(event==='SIGNED_OUT'){
-  currentUser=null;
- }
-});
+/* Горячие клавиши */
+addEventListener('keydown',e=>{if(e.key==='Escape')closeAll();if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)||$('av').classList.contains('hid'))return;
+ if(e.key==='n')openForm();if(e.key==='/'){e.preventDefault();$('q').focus()}});
+boot();
 </script>
 </body>
 </html>
