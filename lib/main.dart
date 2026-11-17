@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sing_box/flutter_sing_box.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://joebcmwluizjqrbatpfs.supabase.co',
+    anonKey: 'sb_publishable_jEd50a0qw2_J17qEVYiLxg_0Mfj68LX',
+  );
 
   await FlutterSingBox().init();
 
@@ -61,19 +67,38 @@ class NovaColors {
 // ============================================================
 
 class NovaServer {
+  final String id;
   final String name;
   final String country;
   final String flag;
   final int ping;
   final String city;
+  final String protocol;
+  final String configText;
 
   const NovaServer({
+    required this.id,
     required this.name,
     required this.country,
     required this.flag,
     required this.ping,
     required this.city,
+    required this.protocol,
+    required this.configText,
   });
+
+  factory NovaServer.fromJson(Map<String, dynamic> json) {
+    return NovaServer(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? 'Nova server').toString(),
+      country: (json['country'] ?? '').toString(),
+      flag: (json['flag'] ?? '🌐').toString(),
+      ping: 0, // Задержка пока не измеряется.
+      city: (json['name'] ?? 'Nova server').toString(),
+      protocol: (json['protocol'] ?? '').toString(),
+      configText: (json['config_text'] ?? '').toString(),
+    );
+  }
 }
 
 // ============================================================
@@ -99,63 +124,77 @@ class _NovaHomeState extends State<NovaHome> {
 
   String searchQuery = '';
 
-  final List<NovaServer> servers = const [
-    NovaServer(
-      name: 'France',
-      country: 'Франция',
-      flag: '🇫🇷',
-      city: 'Paris',
-      ping: 18,
-    ),
-    NovaServer(
-      name: 'Germany',
-      country: 'Германия',
-      flag: '🇩🇪',
-      city: 'Frankfurt',
-      ping: 24,
-    ),
-    NovaServer(
-      name: 'Netherlands',
-      country: 'Нидерланды',
-      flag: '🇳🇱',
-      city: 'Amsterdam',
-      ping: 29,
-    ),
-    NovaServer(
-      name: 'Switzerland',
-      country: 'Швейцария',
-      flag: '🇨🇭',
-      city: 'Zurich',
-      ping: 31,
-    ),
-    NovaServer(
-      name: 'United Kingdom',
-      country: 'Великобритания',
-      flag: '🇬🇧',
-      city: 'London',
-      ping: 35,
-    ),
-    NovaServer(
-      name: 'United States',
-      country: 'США',
-      flag: '🇺🇸',
-      city: 'New York',
-      ping: 95,
-    ),
-    NovaServer(
-      name: 'Japan',
-      country: 'Япония',
-      flag: '🇯🇵',
-      city: 'Tokyo',
-      ping: 142,
-    ),
-  ];
+  List<NovaServer> servers = [];
+  bool isLoadingServers = true;
+  String? serverLoadError;
+
+  @override
+  void initState() {
+    super.initState();
+    loadServers();
+  }
+
+  Future<void> loadServers() async {
+    if (mounted) {
+      setState(() {
+        isLoadingServers = true;
+        serverLoadError = null;
+      });
+    }
+
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'dynamic-service',
+        method: HttpMethod.get,
+      );
+
+      final body = response.data;
+      if (body is! Map || body['servers'] is! List) {
+        throw Exception('Неверный ответ сервера');
+      }
+
+      final loaded = (body['servers'] as List)
+          .whereType<Map>()
+          .map((item) => NovaServer.fromJson(
+                Map<String, dynamic>.from(item),
+              ))
+          .where((server) => server.configText.isNotEmpty)
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        servers = loaded;
+        isLoadingServers = false;
+        if (selectedServer >= servers.length) selectedServer = 0;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        isLoadingServers = false;
+        serverLoadError = error.toString();
+      });
+    }
+  }
+
+  final NovaServer emptyServer = const NovaServer(
+    id: '',
+    name: 'No server',
+    country: '',
+    flag: '🌐',
+    ping: 0,
+    city: 'Нет серверов',
+    protocol: '',
+    configText: '',
+  );
 
   String get language => isRussian ? 'ru' : 'en';
 
   String tr(String ru, String en) => isRussian ? ru : en;
 
-  NovaServer get currentServer => servers[selectedServer];
+  NovaServer get currentServer =>
+      servers.isEmpty
+          ? emptyServer
+          : (selectedServer < servers.length ? servers[selectedServer] : servers.first);
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -168,20 +207,11 @@ class _NovaHomeState extends State<NovaHome> {
   }
 
   void toggleConnection() {
-    setState(() {
-      isConnected = !isConnected;
-    });
-
     showMessage(
-      isConnected
-          ? tr(
-              'Демонстрационный режим: VPN-движок не подключён',
-              'Demo mode: VPN engine is not connected',
-            )
-          : tr(
-              'Демонстрационное подключение отключено',
-              'Demo connection disconnected',
-            ),
+      tr(
+        'Список серверов загружен. Настоящее VPN-подключение ещё не настроено.',
+        'Server list loaded. Real VPN connection is not configured yet.',
+      ),
     );
   }
 
@@ -996,7 +1026,7 @@ class _NovaHomeState extends State<NovaHome> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        '$ping ms',
+        ping > 0 ? '$ping ms' : '—',
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,
@@ -1120,8 +1150,8 @@ class _NovaHomeState extends State<NovaHome> {
           const SizedBox(height: 8),
           Text(
             tr(
-              'Выбери сервер для демонстрационного подключения',
-              'Choose a server for demo connection',
+              'Серверы загружаются из Nova VPN',
+              'Servers are loaded from Nova VPN',
             ),
             style: const TextStyle(
               color: NovaColors.muted,
@@ -1181,8 +1211,38 @@ class _NovaHomeState extends State<NovaHome> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (filteredServers.isEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: isLoadingServers ? null : loadServers,
+              icon: const Icon(Icons.refresh_rounded, size: 17),
+              label: Text(tr('Обновить список', 'Refresh list')),
+            ),
+          ),
+          const SizedBox(height: 4),
+          if (isLoadingServers)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          if (!isLoadingServers && serverLoadError != null)
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                children: [
+                  Text(
+                    tr('Не удалось загрузить серверы', 'Could not load servers'),
+                    style: const TextStyle(color: Colors.orange),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: loadServers,
+                    child: Text(tr('Повторить', 'Retry')),
+                  ),
+                ],
+              ),
+            ),
+          if (!isLoadingServers && serverLoadError == null && filteredServers.isEmpty)
             Padding(
               padding: const EdgeInsets.all(30),
               child: Center(
@@ -1246,7 +1306,7 @@ class _NovaHomeState extends State<NovaHome> {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    isRussian ? server.country : server.name,
+                    '${isRussian ? server.country : server.name} • ${server.protocol}',
                     style: const TextStyle(
                       color: NovaColors.muted,
                       fontSize: 11,
