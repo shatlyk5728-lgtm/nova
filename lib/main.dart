@@ -1,9 +1,12 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_sing_box/flutter_sing_box.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await FlutterSingBox().init();
+
   runApp(const NovaApp());
 }
 
@@ -12,7 +15,6 @@ void main() {
 // Platforms: Windows + Android
 // Languages: Russian + English
 // ============================================================
-
 class NovaApp extends StatelessWidget {
   const NovaApp({super.key});
 
