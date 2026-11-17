@@ -337,15 +337,19 @@ class _NovaHomeState extends State<NovaHome> {
       tag: FlutterSingBoxConstants.defaultGroup,
     )..outbounds = [tag, directTag];
 
-    final config = <String, dynamic>{
-      'outbounds': [
-        selector.toJson(),
-        node.toJson(),
-        DirectOutbound(tag: directTag).toJson(),
-      ],
-    };
+    // Start from the plugin's complete, bundled sing-box template. This
+    // keeps required DNS, inbound and route sections instead of relying on
+    // the provider to reconstruct them from a partial config.
+    final template = jsonDecode(
+      await rootBundle.loadString(FlutterSingBoxConstants.templateConfig),
+    ) as Map<String, dynamic>;
+    template['outbounds'] = [
+      selector.toJson(),
+      node.toJson(),
+      DirectOutbound(tag: directTag).toJson(),
+    ];
 
-    return SingBoxConfigProvider.provide(config);
+    return SingBoxConfigProvider.provide(template);
   }
 
   void _message(String value) {
