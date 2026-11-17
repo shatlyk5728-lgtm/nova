@@ -4,108 +4,231 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nova VPN — Admin Panel</title>
+<title>Nova VPN Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#080d18;color:#eef4ff;font-family:Arial,sans-serif}
-main{max-width:1000px;margin:auto;padding:25px}
-h1{color:#55aaff}
-.card{background:#111b2d;border:1px solid #263750;border-radius:15px;padding:20px;margin:18px 0}
-input,button{padding:13px;border-radius:9px;border:1px solid #344966;margin:6px 0;font-size:15px}
-input{background:#091321;color:white;width:100%}
-button{background:#1677ee;color:white;border:0;cursor:pointer;font-weight:bold}
+body{
+ margin:0;background:#080d18;color:#edf4ff;
+ font-family:Arial,sans-serif
+}
+main{max-width:1050px;margin:auto;padding:24px}
+h1{color:#55aaff;margin-bottom:5px}
+.subtitle{color:#91a5c3}
+.card{
+ background:#111b2d;border:1px solid #263750;
+ border-radius:16px;padding:22px;margin:20px 0
+}
+input,select,textarea{
+ width:100%;padding:13px;margin:7px 0 15px;
+ background:#091321;color:white;
+ border:1px solid #344966;border-radius:9px;
+ font-size:15px
+}
+textarea{min-height:150px;resize:vertical;font-family:monospace}
+label{color:#b8c9df;font-size:14px}
+button{
+ padding:12px 17px;border:0;border-radius:9px;
+ background:#1677ee;color:white;font-weight:bold;
+ cursor:pointer;margin:5px 4px 5px 0
+}
 button:hover{background:#3292ff}
-.server{padding:14px;border-bottom:1px solid #263750}
-small{color:#9eb1cc}
-#status{color:#62d6a4}
+button.secondary{background:#293c56}
+button.danger{background:#b73549}
+button:disabled{opacity:.5;cursor:not-allowed}
+.hidden{display:none!important}
+.server{
+ background:#0b1525;border:1px solid #263750;
+ border-radius:12px;padding:16px;margin:12px 0
+}
+.server-title{font-size:17px;font-weight:bold}
+.meta{color:#9eb1cc;font-size:13px;margin:8px 0}
+.status{color:#62d6a4}
+.error{color:#ff8290}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{background:#193d35;color:#75e0b3;padding:5px 9px;border-radius:20px;font-size:12px}
+.off{background:#4a2630;color:#ff9aa8}
 </style>
 </head>
 <body>
 <main>
-<h1>Nova VPN</h1>
-<p>Панель администратора</p>
-
-<div class="card" id="loginCard">
-<h2>Вход администратора</h2>
-<input id="email" type="email" placeholder="Email">
-<input id="password" type="password" placeholder="Пароль">
-<button onclick="login()">Войти</button>
-<p id="status">Ожидание входа...</p>
+<div class="top">
+ <div>
+  <h1>NOVA VPN</h1>
+  <div class="subtitle">Панель управления серверами</div>
+ </div>
+ <span class="pill">ADMIN PANEL</span>
 </div>
 
-<div id="panel" style="display:none">
-<div class="card">
-<h2>Добавить сервер</h2>
-<input id="name" placeholder="Название, например Paris">
-<input id="country" placeholder="Страна, например France">
-<input id="flag" placeholder="Флаг, например 🇫🇷">
-<input id="ping" type="number" placeholder="Ping (ms)">
-<button onclick="addServer()">Добавить сервер</button>
-</div>
+<section class="card" id="loginCard">
+ <h2>Вход администратора</h2>
+ <label>Email</label>
+ <input id="email" type="email" placeholder="Email администратора">
+ <label>Пароль</label>
+ <input id="password" type="password" placeholder="Пароль">
+ <button id="loginBtn" onclick="login()">Войти</button>
+ <p id="loginStatus"></p>
+</section>
 
-<div class="card">
-<h2>Список серверов</h2>
-<div id="servers">Загрузка...</div>
-<button onclick="logout()">Выйти</button>
-</div>
-</div>
+<section id="panel" class="hidden">
+ <div class="card">
+  <div class="top">
+   <h2 id="formTitle">Добавить VPN-сервер</h2>
+   <button class="secondary" onclick="logout()">Выйти</button>
+  </div>
+
+  <input type="hidden" id="serverId">
+
+  <label>Название сервера</label>
+  <input id="serverName" placeholder="Например: Paris France">
+
+  <label>Страна</label>
+  <input id="country" placeholder="Например: France">
+
+  <label>Флаг</label>
+  <input id="flag" placeholder="Например: 🇫🇷" value="🌐">
+
+  <label>VPN-протокол</label>
+  <select id="protocol">
+   <option value="VLESS">VLESS</option>
+   <option value="VMess">VMess</option>
+   <option value="Shadowsocks">Shadowsocks (SS)</option>
+   <option value="Hysteria2">Hysteria2</option>
+   <option value="Trojan">Trojan</option>
+   <option value="TUIC">TUIC</option>
+   <option value="WireGuard">WireGuard</option>
+   <option value="Other">Другой</option>
+  </select>
+
+  <label>VPN-конфигурация</label>
+  <textarea id="config" placeholder="Вставь сюда полную VPN-ссылку или конфигурацию..."></textarea>
+
+  <label>
+   <input id="active" type="checkbox" checked
+    style="width:auto;margin-right:8px">
+   Сервер активен
+  </label>
+
+  <div>
+   <button id="saveBtn" onclick="saveServer()">Сохранить сервер</button>
+   <button class="secondary" onclick="resetForm()">Очистить форму</button>
+  </div>
+  <p id="formStatus"></p>
+ </div>
+
+ <div class="card">
+  <div class="top">
+   <h2>Мои VPN-серверы</h2>
+   <button class="secondary" onclick="loadServers()">Обновить список</button>
+  </div>
+  <div id="servers">Загрузка серверов...</div>
+ </div>
+</section>
 </main>
 
 <script>
 const SUPABASE_URL = "https://joebcmwluizjqrbatpfs.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_jEd50a0qw2_J17qEVYiLxg_0Mfj68LX";
+const SUPABASE_ANON_KEY =
+ "sb_publishable_jEd50a0qw2_J17qEVYiLxg_0Mfj68LX";
 
 const db = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
+ SUPABASE_URL,
+ SUPABASE_ANON_KEY
 );
+
+let currentUser = null;
+
+function statusMessage(id,message,isError=false){
+ const el=document.getElementById(id);
+ el.textContent=message;
+ el.className=isError?'error':'status';
+}
 
 async function login(){
  const email=document.getElementById('email').value.trim();
  const password=document.getElementById('password').value;
- const status=document.getElementById('status');
+ const btn=document.getElementById('loginBtn');
 
- status.textContent='Проверяем вход...';
-
- const {data,error}=await db.auth.signInWithPassword({email,password});
- if(error){
-  status.textContent='Ошибка входа: '+error.message;
+ if(!email || !password){
+  statusMessage('loginStatus','Введи email и пароль.',true);
   return;
  }
 
- const {data:profile,error:profileError}=await db
- .from('profiles')
- .select('is_admin')
- .eq('id',data.user.id)
- .single();
+ btn.disabled=true;
+ statusMessage('loginStatus','Проверяем вход...');
 
- if(profileError || !profile?.is_admin){
-  await db.auth.signOut();
-  status.textContent='У этого аккаунта нет прав администратора.';
-  return;
+ try{
+  const {data,error}=await db.auth.signInWithPassword({
+   email,password
+  });
+
+  if(error) throw error;
+
+  const {data:profile,error:profileError}=await db
+   .from('profiles')
+   .select('is_admin')
+   .eq('id',data.user.id)
+   .single();
+
+  if(profileError || profile?.is_admin!==true){
+   await db.auth.signOut();
+   throw new Error('У аккаунта нет прав администратора.');
+  }
+
+  currentUser=data.user;
+  document.getElementById('loginCard').classList.add('hidden');
+  document.getElementById('panel').classList.remove('hidden');
+  await loadServers();
+
+ }catch(error){
+  statusMessage('loginStatus','Ошибка: '+error.message,true);
+ }finally{
+  btn.disabled=false;
  }
+}
 
- document.getElementById('loginCard').style.display='none';
- document.getElementById('panel').style.display='block';
- loadServers();
+async function logout(){
+ await db.auth.signOut();
+ currentUser=null;
+ document.getElementById('panel').classList.add('hidden');
+ document.getElementById('loginCard').classList.remove('hidden');
+ document.getElementById('password').value='';
+ statusMessage('loginStatus','Ты вышел из аккаунта.');
+ resetForm();
+}
+
+function resetForm(){
+ document.getElementById('serverId').value='';
+ document.getElementById('serverName').value='';
+ document.getElementById('country').value='';
+ document.getElementById('flag').value='🌐';
+ document.getElementById('protocol').value='VLESS';
+ document.getElementById('config').value='';
+ document.getElementById('active').checked=true;
+ document.getElementById('formTitle').textContent='Добавить VPN-сервер';
+ document.getElementById('saveBtn').textContent='Сохранить сервер';
+ document.getElementById('saveBtn').disabled=false;
+ statusMessage('formStatus','');
 }
 
 async function loadServers(){
  const box=document.getElementById('servers');
  box.textContent='Загрузка...';
 
- const {data,error}=await db.from('servers').select('*');
+ const {data,error}=await db
+  .from('vpn_server_configs')
+  .select('id,name,country,flag,protocol,is_active,created_at')
+  .order('created_at',{ascending:false});
 
  if(error){
   box.textContent='Ошибка загрузки: '+error.message;
   return;
  }
 
- box.innerHTML='';
+ box.replaceChildren();
 
  if(!data || data.length===0){
-  box.textContent='Серверов пока нет.';
+  box.textContent='Серверов пока нет. Добавь первый сервер выше.';
   return;
  }
 
@@ -113,74 +236,157 @@ async function loadServers(){
   const item=document.createElement('div');
   item.className='server';
 
-  const title=document.createElement('strong');
-  title.textContent=(server.flag||'🌐')+' '+(server.name||'Server');
+  const top=document.createElement('div');
+  top.className='top';
 
-  const details=document.createElement('small');
-  details.textContent=' · '+(server.country||'')+' · '+(server.ping??'—')+' ms';
+  const title=document.createElement('div');
+  title.className='server-title';
+  title.textContent=(server.flag||'🌐')+' '+server.name;
+
+  const badge=document.createElement('span');
+  badge.className='pill'+(server.is_active?'':' off');
+  badge.textContent=server.is_active?'Активен':'Отключён';
+
+  top.append(title,badge);
+
+  const meta=document.createElement('div');
+  meta.className='meta';
+  meta.textContent=server.country+' · '+server.protocol;
+
+  const edit=document.createElement('button');
+  edit.className='secondary';
+  edit.textContent='Изменить';
+  edit.onclick=()=>editServer(server.id);
+
+  const toggle=document.createElement('button');
+  toggle.className='secondary';
+  toggle.textContent=server.is_active?'Отключить':'Включить';
+  toggle.onclick=()=>toggleServer(server.id,!server.is_active);
 
   const remove=document.createElement('button');
+  remove.className='danger';
   remove.textContent='Удалить';
   remove.onclick=()=>deleteServer(server.id);
 
-  item.append(title,details,document.createElement('br'),remove);
-  box.appendChild(item);
+  item.append(top,meta,edit,toggle,remove);
+  box.append(item);
  });
 }
 
-async function addServer(){
- const name=document.getElementById('name').value.trim();
+async function saveServer(){
+ const id=document.getElementById('serverId').value;
+ const name=document.getElementById('serverName').value.trim();
  const country=document.getElementById('country').value.trim();
- const flag=document.getElementById('flag').value.trim();
- const pingValue=document.getElementById('ping').value;
+ const flag=document.getElementById('flag').value.trim()||'🌐';
+ const protocol=document.getElementById('protocol').value;
+ const config=document.getElementById('config').value.trim();
+ const is_active=document.getElementById('active').checked;
+ const btn=document.getElementById('saveBtn');
 
- if(!name || !country){
-  alert('Заполни название и страну');
+ if(!name || !country || !config){
+  statusMessage('formStatus','Заполни название, страну и конфигурацию.',true);
   return;
  }
 
- const server={
-  name:name,
-  country:country
+ btn.disabled=true;
+ statusMessage('formStatus','Сохраняем сервер...');
+
+ const record={
+  name,country,flag,protocol,
+  config_text:config,
+  is_active,
+  updated_at:new Date().toISOString()
  };
 
- if(flag) server.flag=flag;
- if(pingValue!=='') server.ping=Number(pingValue);
+ try{
+  let result;
 
- const {error}=await db.from('servers').insert(server);
+  if(id){
+   result=await db
+    .from('vpn_server_configs')
+    .update(record)
+    .eq('id',id);
+  }else{
+   result=await db
+    .from('vpn_server_configs')
+    .insert(record);
+  }
+
+  if(result.error) throw result.error;
+
+  statusMessage('formStatus',id?'Сервер обновлён!':'Сервер сохранён!');
+  resetForm();
+  await loadServers();
+
+ }catch(error){
+  statusMessage('formStatus','Ошибка сохранения: '+error.message,true);
+ }finally{
+  btn.disabled=false;
+ }
+}
+
+async function editServer(id){
+ const {data,error}=await db
+  .from('vpn_server_configs')
+  .select('*')
+  .eq('id',id)
+  .single();
 
  if(error){
   alert('Ошибка: '+error.message);
   return;
  }
 
- alert('Сервер добавлен!');
- document.getElementById('name').value='';
- document.getElementById('country').value='';
- document.getElementById('flag').value='';
- document.getElementById('ping').value='';
- loadServers();
+ document.getElementById('serverId').value=data.id;
+ document.getElementById('serverName').value=data.name||'';
+ document.getElementById('country').value=data.country||'';
+ document.getElementById('flag').value=data.flag||'🌐';
+ document.getElementById('protocol').value=data.protocol||'VLESS';
+ document.getElementById('config').value=data.config_text||'';
+ document.getElementById('active').checked=data.is_active;
+ document.getElementById('formTitle').textContent='Редактировать сервер';
+ document.getElementById('saveBtn').textContent='Сохранить изменения';
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function toggleServer(id,active){
+ const {error}=await db
+  .from('vpn_server_configs')
+  .update({
+   is_active:active,
+   updated_at:new Date().toISOString()
+  })
+  .eq('id',id);
+
+ if(error){
+  alert('Ошибка: '+error.message);
+  return;
+ }
+
+ await loadServers();
 }
 
 async function deleteServer(id){
- if(!confirm('Удалить этот сервер?'))return;
+ if(!confirm('Точно удалить этот VPN-сервер?'))return;
 
- const {error}=await db.from('servers').delete().eq('id',id);
+ const {error}=await db
+  .from('vpn_server_configs')
+  .delete()
+  .eq('id',id);
 
  if(error){
   alert('Ошибка удаления: '+error.message);
   return;
  }
 
- loadServers();
+ await loadServers();
 }
 
-async function logout(){
- await db.auth.signOut();
- document.getElementById('panel').style.display='none';
- document.getElementById('loginCard').style.display='block';
- document.getElementById('status').textContent='Ты вышел из аккаунта.';
-}
+db.auth.onAuthStateChange((event,session)=>{
+ if(event==='SIGNED_OUT'){
+  currentUser=null;
+ }
+});
 </script>
 </body>
 </html>
