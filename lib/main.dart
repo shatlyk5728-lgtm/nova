@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -214,9 +215,18 @@ class _NovaHomeState extends State<NovaHome> {
     });
 
     try {
-      // Convert the VLESS / Shadowsocks share link to a typed sing-box config.
-      final singBoxConfig =
-          await SingBoxConfigProvider.provide(server.configText.trim());
+      // Share links contain ':' and can be mistaken for YAML by the
+      // subscription format detector. Wrap a single share link in Base64
+      // so the provider selects its share-link subscription parser.
+      final rawConfig = server.configText.trim();
+      final isShareLink = RegExp(
+        r'^(vless|vmess|ss|trojan|hysteria|hysteria2|hy2|tuic|anytls)://',
+        caseSensitive: false,
+      ).hasMatch(rawConfig);
+      final configInput = isShareLink
+          ? base64Encode(utf8.encode(rawConfig))
+          : rawConfig;
+      final singBoxConfig = await SingBoxConfigProvider.provide(configInput);
 
       // Save the config as a local profile and make it the active config.
       final id = profileStorage.generateProfileId;
