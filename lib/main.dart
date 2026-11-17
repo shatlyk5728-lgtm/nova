@@ -226,7 +226,16 @@ class _NovaHomeState extends State<NovaHome> {
       final configInput = isShareLink
           ? base64Encode(utf8.encode(rawConfig))
           : rawConfig;
-      final singBoxConfig = await SingBoxConfigProvider.provide(configInput);
+      late final SingBox singBoxConfig;
+      try {
+        singBoxConfig = await SingBoxConfigProvider.provide(configInput);
+      } catch (parseError) {
+        // Some plugin versions can drop a single VLESS node while importing
+        // a share link, then fail while looking for the missing proxy group.
+        // For a simple TCP VLESS link, build the outbound explicitly instead.
+        if (!rawConfig.toLowerCase().startsWith('vless://')) rethrow;
+        singBoxConfig = await _buildVlessFallback(rawConfig);
+      }
 
       // Save the config as a local profile and make it the active config.
       final id = profileStorage.generateProfileId;
@@ -267,6 +276,76 @@ class _NovaHomeState extends State<NovaHome> {
       });
       _message('${tr('Ошибка подключения', 'Connection error')}: $e');
     }
+  }
+
+  Future<SingBox> _buildVlessFallback(String raw) async {
+    final uri = Uri.parse(raw.trim());
+    if (uri.scheme.toLowerCase() != 'vless' ||
+        uri.host.isEmpty ||
+        uri.port <= 0 ||
+        uri.userInfo.isEmpty) {
+      throw Exception('Некорректная VLESS-ссылка');
+    }
+
+    final query = uri.queryParameters;
+    final transportType = (query['type'] ?? 'tcp').toLowerCase();
+    if (transportType != 'tcp') {
+      throw Exception('Для этой VLESS-ссылки требуется транспорт $transportType. Проверь конфигурацию сервера.');
+    }
+
+    final fragment = uri.fragment.split('?serverDescription=').first;
+    final decodedName = Uri.decodeComponent(fragment).trim();
+    final tag = decodedName.isEmpty ? 'Nova VLESS' : decodedName;
+
+    final fingerprint = query['fp'];
+    final OutboundUTLSOptions? utls = fingerprint?.isNotEmpty == true
+        ? (OutboundUTLSOptions()
+          ..enabled = true
+          ..fingerprint = fingerprint!)
+        : null;
+
+    OutboundTLSOptions? tls;
+    final security = (query['security'] ?? '').toLowerCase();
+    if (security == 'tls' || security == 'xtls') {
+      tls = OutboundTLSOptions()
+        ..enabled = true
+        ..insecure = query['allowInsecure'] == '1' || query['insecure'] == '1'
+        ..serverName = query['sni'] ?? uri.host
+        ..utls = utls;
+    } else if (security == 'reality') {
+      tls = OutboundTLSOptions()
+        ..enabled = true
+        ..serverName = query['sni'] ?? uri.host
+        ..utls = utls
+        ..reality = (OutboundRealityOptions()
+          ..enabled = true
+          ..publicKey = query['pbk']
+          ..shortId = query['sid'] ?? '');
+    } else if (security.isNotEmpty && security != 'none') {
+      throw Exception('Неподдерживаемый тип защиты VLESS: $security');
+    }
+
+    final node = VlessOutbound(tag: tag)
+      ..server = uri.host
+      ..serverPort = uri.port
+      ..uuid = uri.userInfo
+      ..flow = query['flow']
+      ..tls = tls;
+
+    const directTag = 'direct';
+    final selector = SelectorOutbound(
+      tag: FlutterSingBoxConstants.defaultGroup,
+    )..outbounds = [tag, directTag];
+
+    final config = <String, dynamic>{
+      'outbounds': [
+        selector.toJson(),
+        node.toJson(),
+        DirectOutbound(tag: directTag).toJson(),
+      ],
+    };
+
+    return SingBoxConfigProvider.provide(config);
   }
 
   void _message(String value) {
