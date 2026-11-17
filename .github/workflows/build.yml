@@ -18,7 +18,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -30,27 +35,23 @@ jobs:
         run: |
           flutter --version
           dart --version
+          java -version
 
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
 
-      - name: Add JitPack repository to Android project
+      - name: Patch Android project
         shell: bash
         run: |
           FILE="android/build.gradle.kts"
-          if [ -f "$FILE" ]; then
-            if ! grep -q "jitpack.io" "$FILE"; then
-              printf '\nallprojects {\n    repositories {\n        maven { url = uri("https://jitpack.io") }\n    }\n}\n' >> "$FILE"
-            fi
-            echo "=== $FILE ==="
-            cat "$FILE"
-          else
-            echo "android/build.gradle.kts not found"
-            ls android
+          if [ -f "$FILE" ] && ! grep -q "jitpack.io" "$FILE"; then
+            printf '\nallprojects {\n    repositories {\n        maven { url = uri("https://jitpack.io") }\n    }\n}\n' >> "$FILE"
           fi
-
-      - name: Set Android app name
-        run: sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
+          APP="android/app/build.gradle.kts"
+          if [ -f "$APP" ]; then
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$APP"
+          fi
+          sed -i 's/android:label="[^"]*"/android:label="Nova"/' android/app/src/main/AndroidManifest.xml
 
       - name: Generate source icon
         run: |
@@ -63,9 +64,6 @@ jobs:
       - name: Generate launcher icons
         run: dart run flutter_launcher_icons
 
-      - name: Precache Android artifacts
-        run: flutter precache --android
-
       - name: Build Android APK
         shell: bash
         run: |
@@ -76,13 +74,16 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          grep -n -A 15 -E "What went wrong|Could not (resolve|find|get)|FAILURE:|Searched in" build.log | head -120
+          if [ -f build.log ]; then
+            grep -n -A 15 -E "What went wrong|Could not (resolve|find|get)|FAILURE:|Searched in|Error:" build.log | head -150 || tail -n 80 build.log
+          fi
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: Nova-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
 
   windows:
     runs-on: windows-latest
@@ -91,21 +92,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Show versions
-        run: |
-          flutter --version
-          dart --version
-
       - name: Create platforms
         run: flutter create --platforms=android,windows --project-name nova --org com.nova .
 
       - name: Generate source icon
+        shell: bash
         run: |
           npm install --no-save sharp
           node tools/make_icon.js
@@ -124,3 +126,4 @@ jobs:
         with:
           name: Nova-Windows
           path: build/windows/x64/runner/Release/
+          if-no-files-found: error
