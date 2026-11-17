@@ -10,8 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   supabase_flutter: ^2.10.0
-  flutter_sing_box: ^3.0.3
+  flutter_sing_box: 3.1.0
+  mmkv: ^2.4.3
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3
