@@ -8,6 +8,7 @@ import 'package:flutter_sing_box/flutter_sing_box.dart';
 import 'package:mmkv/mmkv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 final FlutterSingBox novaVpn = FlutterSingBox();
 
@@ -110,6 +111,225 @@ class _NovaHomeState extends State<NovaHome> {
   StreamSubscription<ProxyState>? proxySubscription;
 
   String tr(String ru, String en) => isRussian ? ru : en;
+
+  User? get currentUser => Supabase.instance.client.auth.currentUser;
+
+  Future<void> _openTelegram(String message) async {
+    final uri = Uri.parse('https://t.me/shatlyk_codes').replace(
+      queryParameters: {'text': message},
+    );
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _message(tr('Не удалось открыть Telegram', 'Could not open Telegram'));
+    }
+  }
+
+  Future<void> _contactSupport() async {
+    await _openTelegram(tr(
+      'Здравствуйте! Нужна помощь с Nova VPN.',
+      'Hello! I need help with Nova VPN.',
+    ));
+  }
+
+  Future<void> _buyPremium() async {
+    if (currentUser == null) {
+      final signedIn = await _showAccountDialog();
+      if (signedIn != true || currentUser == null) return;
+    }
+    await _openTelegram(tr(
+      'Здравствуйте! Хочу узнать, как получить Nova VPN Premium. Мой аккаунт: ${currentUser!.email ?? currentUser!.id}.',
+      'Hello! I would like to get Nova VPN Premium. My account: ${currentUser!.email ?? currentUser!.id}.',
+    ));
+  }
+
+  Future<bool?> _showAccountDialog() async {
+    final email = TextEditingController();
+    final password = TextEditingController();
+    bool createAccount = false;
+    bool busy = false;
+    String? errorText;
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: !busy,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) => AlertDialog(
+          backgroundColor: panel,
+          title: Text(createAccount ? tr('Регистрация', 'Create account') : tr('Вход в аккаунт', 'Sign in')),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: InputDecoration(
+                    labelText: tr('Электронная почта', 'Email'),
+                    prefixIcon: const Icon(Icons.mail_outline),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: tr('Пароль', 'Password'),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                  ),
+                ),
+                if (errorText != null) ...[
+                  const SizedBox(height: 12),
+                  Text(errorText!, style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                ],
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: busy ? null : () => refresh(() {
+                    createAccount = !createAccount;
+                    errorText = null;
+                  }),
+                  child: Text(createAccount
+                    ? tr('Уже есть аккаунт? Войти', 'Already registered? Sign in')
+                    : tr('Нет аккаунта? Зарегистрироваться', 'New here? Create an account')),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.pop(dialogContext, false),
+              child: Text(tr('Отмена', 'Cancel')),
+            ),
+            FilledButton(
+              onPressed: busy ? null : () async {
+                final mail = email.text.trim();
+                final pass = password.text;
+                if (!mail.contains('@') || pass.length < 6) {
+                  refresh(() => errorText = tr(
+                    'Укажи корректную почту и пароль минимум из 6 символов.',
+                    'Enter a valid email and a password with at least 6 characters.',
+                  ));
+                  return;
+                }
+                refresh(() { busy = true; errorText = null; });
+                try {
+                  if (createAccount) {
+                    final result = await Supabase.instance.client.auth.signUp(
+                      email: mail,
+                      password: pass,
+                    );
+                    if (result.session == null) {
+                      refresh(() {
+                        busy = false;
+                        errorText = tr(
+                          'Аккаунт создан. Подтверди почту по ссылке из письма, затем войди.',
+                          'Account created. Confirm your email using the link we sent, then sign in.',
+                        );
+                      });
+                      return;
+                    }
+                  } else {
+                    await Supabase.instance.client.auth.signInWithPassword(
+                      email: mail,
+                      password: pass,
+                    );
+                  }
+                  if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+                  if (mounted) setState(() {});
+                } on AuthException catch (e) {
+                  refresh(() {
+                    busy = false;
+                    errorText = e.message;
+                  });
+                } catch (e) {
+                  refresh(() {
+                    busy = false;
+                    errorText = e.toString();
+                  });
+                }
+              },
+              child: busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(createAccount ? tr('Создать аккаунт', 'Create account') : tr('Войти', 'Sign in')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _accountAndPremium() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: panel,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('Аккаунт Nova', 'Nova account'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 6),
+            Text(
+              currentUser == null
+                ? tr('Войди или зарегистрируйся, чтобы обратиться за Premium.', 'Sign in or register to request Premium.')
+                : (currentUser!.email ?? currentUser!.id),
+              style: const TextStyle(color: muted, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () async {
+                  if (currentUser == null) {
+                    await _showAccountDialog();
+                  } else {
+                    await Supabase.instance.client.auth.signOut();
+                    if (mounted) setState(() {});
+                  }
+                },
+                icon: Icon(currentUser == null ? Icons.login : Icons.logout),
+                label: Text(currentUser == null ? tr('Войти / Регистрация', 'Sign in / Register') : tr('Выйти', 'Sign out')),
+              )),
+            ]),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _buyPremium,
+                icon: const Icon(Icons.workspace_premium_rounded),
+                label: Text(tr('Купить Premium', 'Get Premium')),
+                style: FilledButton.styleFrom(
+                  backgroundColor: purple,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _contactSupport,
+                icon: const Icon(Icons.support_agent_rounded),
+                label: Text(tr('Обратиться в поддержку', 'Contact support')),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => launchUrl(
+                Uri.parse('https://t.me/shatlyk_codes'),
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.telegram),
+              label: const Text('@shatlyk_codes'),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 
   NovaServer? get currentServer =>
       servers.isEmpty ? null : servers[selectedServer.clamp(0, servers.length - 1)];
@@ -568,6 +788,8 @@ class _NovaHomeState extends State<NovaHome> {
             const SizedBox(height: 18),
             _notice(),
             const SizedBox(height: 18),
+            _accountAndPremium(),
+            const SizedBox(height: 18),
             _quickStats(),
           ],
         ),
@@ -832,6 +1054,8 @@ class _NovaHomeState extends State<NovaHome> {
                 onChanged: (v) => setState(() => isRussian = v),
               ),
             ),
+            const SizedBox(height: 15),
+            _accountAndPremium(),
             const SizedBox(height: 15),
             _notice(),
             const SizedBox(height: 20),
