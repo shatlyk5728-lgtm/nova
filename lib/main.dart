@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_sing_box/flutter_sing_box.dart';
+import 'package:flutter_sing_box/flutter_sing_box.dart' hide User;
 import 'package:mmkv/mmkv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
