@@ -187,9 +187,24 @@ jobs:
       - name: Build Windows EXE
         run: flutter build windows --release
 
-      - name: Upload Windows application
+      - name: Package Windows installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress --yes
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" installer\\nova.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: Nova-Windows
+          name: Nova-Windows-Installer
+          path: dist/Nova-VPN-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload Windows portable application
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nova-Windows-Portable
           path: build/windows/x64/runner/Release/
           if-no-files-found: error
