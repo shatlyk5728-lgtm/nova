@@ -257,78 +257,39 @@ class _NovaHomeState extends State<NovaHome> {
     );
   }
 
-  Widget _accountAndPremium() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: panel,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(tr('Аккаунт Nova', 'Nova account'),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 6),
-            Text(
-              currentUser == null
-                ? tr('Войди или зарегистрируйся, чтобы обратиться за Premium.', 'Sign in or register to request Premium.')
-                : (currentUser!.email ?? currentUser!.id),
-              style: const TextStyle(color: muted, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(
-                onPressed: () async {
-                  if (currentUser == null) {
-                    await _showAccountDialog();
-                  } else {
-                    await Supabase.instance.client.auth.signOut();
-                    if (mounted) setState(() {});
-                  }
-                },
-                icon: Icon(currentUser == null ? Icons.login : Icons.logout),
-                label: Text(currentUser == null ? tr('Войти / Регистрация', 'Sign in / Register') : tr('Выйти', 'Sign out')),
-              )),
-            ]),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _buyPremium,
-                icon: const Icon(Icons.workspace_premium_rounded),
-                label: Text(tr('Купить Premium', 'Get Premium')),
-                style: FilledButton.styleFrom(
-                  backgroundColor: purple,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _contactSupport,
-                icon: const Icon(Icons.support_agent_rounded),
-                label: Text(tr('Обратиться в поддержку', 'Contact support')),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () => launchUrl(
-                Uri.parse('https://t.me/shatlyk_codes'),
-                mode: LaunchMode.externalApplication,
-              ),
-              icon: const Icon(Icons.telegram),
-              label: const Text('@shatlyk_codes'),
-            ),
-          ],
-        ),
-      ),
-    ],
+  DateTime? premiumExpiresAt;
+  bool isPremium = false;
+  bool premiumLoading = true;
+
+  Future<void> _refreshPremium() async {
+    final user = currentUser;
+    if (user == null) return;
+    try {
+      final result = await Supabase.instance.client.from('nova_user_premium').select('expires_at').eq('user_id', user.id).maybeSingle();
+      final raw = result == null ? null : result['expires_at'];
+      final expiry = raw == null ? null : DateTime.tryParse(raw.toString())?.toLocal();
+      if (!mounted) return;
+      setState(() { premiumExpiresAt = expiry; isPremium = expiry != null && expiry.isAfter(DateTime.now()); premiumLoading = false; });
+    } catch (_) { if (mounted) setState(() => premiumLoading = false); }
+  }
+
+  Widget _accountAndPremium() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(17), border: Border.all(color: border)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [const Icon(Icons.person_pin_rounded, color: cyan), const SizedBox(width: 9), Expanded(child: Text(tr('Твой аккаунт Nova', 'Your Nova account'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))), if (isPremium) const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFD166))]),
+      const SizedBox(height: 8),
+      Text(tr('Твой постоянный ID пользователя:', 'Your permanent user ID:'), style: const TextStyle(color: muted, fontSize: 12)),
+      const SizedBox(height: 5),
+      SelectableText(currentUser?.id ?? tr('Создаём аккаунт...', 'Creating account...'), style: const TextStyle(fontSize: 12, color: cyan, fontWeight: FontWeight.w600)),
+      OutlinedButton.icon(onPressed: currentUser == null ? null : () async { await Clipboard.setData(ClipboardData(text: currentUser!.id)); _message(tr('ID скопирован', 'ID copied')); }, icon: const Icon(Icons.copy_rounded, size: 17), label: Text(tr('Скопировать ID', 'Copy ID'))),
+      const Divider(height: 22, color: border),
+      Row(children: [Icon(isPremium ? Icons.verified_rounded : Icons.lock_outline_rounded, color: isPremium ? green : muted), const SizedBox(width: 8), Expanded(child: Text(premiumLoading ? tr('Проверяем Premium...', 'Checking Premium...') : isPremium ? tr('Premium активен до ${premiumExpiresAt!.day.toString().padLeft(2,'0')}.${premiumExpiresAt!.month.toString().padLeft(2,'0')}.${premiumExpiresAt!.year}', 'Premium active until ${premiumExpiresAt!.day}/${premiumExpiresAt!.month}/${premiumExpiresAt!.year}') : tr('Базовый доступ активен', 'Free access is active'), style: TextStyle(color: isPremium ? green : Colors.white70, fontWeight: FontWeight.w600))), IconButton(onPressed: _refreshPremium, icon: const Icon(Icons.refresh_rounded))]),
+      const SizedBox(height: 8),
+      SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: _buyPremium, icon: const Icon(Icons.workspace_premium_rounded), label: Text(tr('Связаться по поводу Premium', 'Contact about Premium')), style: FilledButton.styleFrom(backgroundColor: purple, foregroundColor: Colors.white))),
+      const SizedBox(height: 6), SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _contactSupport, icon: const Icon(Icons.support_agent_rounded), label: Text(tr('Поддержка Telegram', 'Telegram support')))),
+      TextButton.icon(onPressed: () => launchUrl(Uri.parse('https://t.me/shatlyk_codes'), mode: LaunchMode.externalApplication), icon: const Icon(Icons.send_rounded), label: const Text('@shatlyk_codes')),
+    ]),
   );
 
   NovaServer? get currentServer =>
@@ -339,6 +300,7 @@ class _NovaHomeState extends State<NovaHome> {
     super.initState();
     proxySubscription = novaVpn.proxyStateStream.listen(_onProxyState);
     _loadFavorites();
+    _refreshPremium();
     loadServers();
   }
 
