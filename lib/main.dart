@@ -146,122 +146,6 @@ class _NovaHomeState extends State<NovaHome> {
     ));
   }
 
-  Future<bool?> _showAccountDialog() async {
-    final email = TextEditingController();
-    final password = TextEditingController();
-    bool createAccount = false;
-    bool busy = false;
-    String? errorText;
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: !busy,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, refresh) => AlertDialog(
-          backgroundColor: panel,
-          title: Text(createAccount ? tr('Регистрация', 'Create account') : tr('Вход в аккаунт', 'Sign in')),
-          content: SizedBox(
-            width: 380,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: email,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: InputDecoration(
-                    labelText: tr('Электронная почта', 'Email'),
-                    prefixIcon: const Icon(Icons.mail_outline),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: password,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: tr('Пароль', 'Password'),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                  ),
-                ),
-                if (errorText != null) ...[
-                  const SizedBox(height: 12),
-                  Text(errorText!, style: const TextStyle(color: Colors.orange, fontSize: 12)),
-                ],
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: busy ? null : () => refresh(() {
-                    createAccount = !createAccount;
-                    errorText = null;
-                  }),
-                  child: Text(createAccount
-                    ? tr('Уже есть аккаунт? Войти', 'Already registered? Sign in')
-                    : tr('Нет аккаунта? Зарегистрироваться', 'New here? Create an account')),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: busy ? null : () => Navigator.pop(dialogContext, false),
-              child: Text(tr('Отмена', 'Cancel')),
-            ),
-            FilledButton(
-              onPressed: busy ? null : () async {
-                final mail = email.text.trim();
-                final pass = password.text;
-                if (!mail.contains('@') || pass.length < 6) {
-                  refresh(() => errorText = tr(
-                    'Укажи корректную почту и пароль минимум из 6 символов.',
-                    'Enter a valid email and a password with at least 6 characters.',
-                  ));
-                  return;
-                }
-                refresh(() { busy = true; errorText = null; });
-                try {
-                  if (createAccount) {
-                    final result = await Supabase.instance.client.auth.signUp(
-                      email: mail,
-                      password: pass,
-                    );
-                    if (result.session == null) {
-                      refresh(() {
-                        busy = false;
-                        errorText = tr(
-                          'Аккаунт создан. Подтверди почту по ссылке из письма, затем войди.',
-                          'Account created. Confirm your email using the link we sent, then sign in.',
-                        );
-                      });
-                      return;
-                    }
-                  } else {
-                    await Supabase.instance.client.auth.signInWithPassword(
-                      email: mail,
-                      password: pass,
-                    );
-                  }
-                  if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-                  if (mounted) setState(() {});
-                } on AuthException catch (e) {
-                  refresh(() {
-                    busy = false;
-                    errorText = e.message;
-                  });
-                } catch (e) {
-                  refresh(() {
-                    busy = false;
-                    errorText = e.toString();
-                  });
-                }
-              },
-              child: busy
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(createAccount ? tr('Создать аккаунт', 'Create account') : tr('Войти', 'Sign in')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   DateTime? premiumExpiresAt;
   bool isPremium = false;
   bool premiumLoading = true;
@@ -289,7 +173,22 @@ class _NovaHomeState extends State<NovaHome> {
       SelectableText(currentUser?.id ?? tr('Создаём аккаунт...', 'Creating account...'), style: const TextStyle(fontSize: 12, color: cyan, fontWeight: FontWeight.w600)),
       OutlinedButton.icon(onPressed: currentUser == null ? null : () async { await Clipboard.setData(ClipboardData(text: currentUser!.id)); _message(tr('ID скопирован', 'ID copied')); }, icon: const Icon(Icons.copy_rounded, size: 17), label: Text(tr('Скопировать ID', 'Copy ID'))),
       const Divider(height: 22, color: border),
-      Row(children: [Icon(isPremium ? Icons.verified_rounded : Icons.lock_outline_rounded, color: isPremium ? green : muted), const SizedBox(width: 8), Expanded(child: Text(premiumLoading ? tr('Проверяем Premium...', 'Checking Premium...') : isPremium ? tr('Premium активен до ${premiumExpiresAt!.day.toString().padLeft(2,'0')}.${premiumExpiresAt!.month.toString().padLeft(2,'0')}.${premiumExpiresAt!.year}', 'Premium active until ${premiumExpiresAt!.day}/${premiumExpiresAt!.month}/${premiumExpiresAt!.year}') : tr('Базовый доступ активен', 'Free access is active'), style: TextStyle(color: isPremium ? green : Colors.white70, fontWeight: FontWeight.w600))), IconButton(onPressed: _refreshPremium, icon: const Icon(Icons.refresh_rounded))]),
+      Row(children: [
+        Icon(isPremium ? Icons.verified_rounded : Icons.lock_outline_rounded, color: isPremium ? green : muted),
+        const SizedBox(width: 8),
+        Expanded(child: Text(
+          premiumLoading
+              ? tr('Проверяем Premium...', 'Checking Premium...')
+              : isPremium
+                  ? tr(
+                      'Premium активен до ${premiumExpiresAt!.day.toString().padLeft(2, "0")}.${premiumExpiresAt!.month.toString().padLeft(2, "0")}.${premiumExpiresAt!.year}',
+                      'Premium active until ${premiumExpiresAt!.day}/${premiumExpiresAt!.month}/${premiumExpiresAt!.year}',
+                    )
+                  : tr('Базовый доступ активен', 'Free access is active'),
+          style: TextStyle(color: isPremium ? green : Colors.white70, fontWeight: FontWeight.w600),
+        )),
+        IconButton(onPressed: _refreshPremium, icon: const Icon(Icons.refresh_rounded)),
+      ]),
       const SizedBox(height: 8),
       SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: _buyPremium, icon: const Icon(Icons.workspace_premium_rounded), label: Text(tr('Связаться по поводу Premium', 'Contact about Premium')), style: FilledButton.styleFrom(backgroundColor: purple, foregroundColor: Colors.white))),
       const SizedBox(height: 6), SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _contactSupport, icon: const Icon(Icons.support_agent_rounded), label: Text(tr('Поддержка Telegram', 'Telegram support')))),
