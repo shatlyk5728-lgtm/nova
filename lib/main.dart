@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'account_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sing_box/flutter_sing_box.dart' hide User;
 import 'package:mmkv/mmkv.dart';
@@ -162,6 +163,19 @@ class _NovaHomeState extends State<NovaHome> {
     } catch (_) { if (mounted) setState(() => premiumLoading = false); }
   }
 
+  Future<void> _openAccountDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => NovaAccountDialog(
+        onAccountChanged: () async {
+          if (mounted) setState(() {});
+          await _refreshPremium();
+        },
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   Widget _accountAndPremium() => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(17), border: Border.all(color: border)),
@@ -172,6 +186,8 @@ class _NovaHomeState extends State<NovaHome> {
       const SizedBox(height: 5),
       SelectableText(currentUser?.id ?? tr('Создаём аккаунт...', 'Creating account...'), style: const TextStyle(fontSize: 12, color: cyan, fontWeight: FontWeight.w600)),
       OutlinedButton.icon(onPressed: currentUser == null ? null : () async { await Clipboard.setData(ClipboardData(text: currentUser!.id)); _message(tr('ID скопирован', 'ID copied')); }, icon: const Icon(Icons.copy_rounded, size: 17), label: Text(tr('Скопировать ID', 'Copy ID'))),
+      const SizedBox(height: 6),
+      SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _openAccountDialog, icon: const Icon(Icons.alternate_email_rounded), label: Text(tr('Регистрация / вход по Email', 'Email registration / sign in')))),
       const Divider(height: 22, color: border),
       Row(children: [
         Icon(isPremium ? Icons.verified_rounded : Icons.lock_outline_rounded, color: isPremium ? green : muted),
