@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sing_box/flutter_sing_box.dart';
 import 'package:mmkv/mmkv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final FlutterSingBox novaVpn = FlutterSingBox();
@@ -100,6 +101,8 @@ class _NovaHomeState extends State<NovaHome> {
   bool isConnecting = false;
   bool isConnected = false;
   bool isRussian = true;
+  bool favoritesOnly = false;
+  final Set<String> favoriteIds = <String>{};
   String? loadError;
   String? connectionError;
   String search = '';
@@ -115,7 +118,43 @@ class _NovaHomeState extends State<NovaHome> {
   void initState() {
     super.initState();
     proxySubscription = novaVpn.proxyStateStream.listen(_onProxyState);
+    _loadFavorites();
     loadServers();
+  }
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => favoriteIds.addAll(prefs.getStringList('nova_favorite_servers') ?? const <String>[]));
+  }
+
+  Future<void> _saveFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('nova_favorite_servers', favoriteIds.toList());
+  }
+
+  void _toggleFavorite(NovaServer server) {
+    setState(() {
+      if (!favoriteIds.add(server.id)) favoriteIds.remove(server.id);
+    });
+    _saveFavorites();
+  }
+
+  void _selectQuickServer() {
+    if (servers.isEmpty) {
+      _message(tr('Нет доступных серверов', 'No servers available'));
+      return;
+    }
+    if (isConnected || isConnecting) {
+      _message(tr('Сначала отключи VPN', 'Disconnect VPN first'));
+      return;
+    }
+    final preferred = servers.indexWhere((s) => favoriteIds.contains(s.id));
+    setState(() {
+      selectedServer = preferred >= 0 ? preferred : 0;
+      selectedPage = 0;
+    });
+    _message(tr('Сервер выбран автоматически', 'Server selected automatically'));
   }
 
   void _onProxyState(ProxyState state) {
@@ -528,8 +567,32 @@ class _NovaHomeState extends State<NovaHome> {
             _selectedServerCard(),
             const SizedBox(height: 18),
             _notice(),
+            const SizedBox(height: 18),
+            _quickStats(),
           ],
         ),
+      );
+
+  Widget _quickStats() => Row(
+        children: [
+          Expanded(child: _statCard(Icons.public_rounded, '${servers.length}', tr('Серверов', 'Servers'), cyan)),
+          const SizedBox(width: 10),
+          Expanded(child: _statCard(Icons.favorite_rounded, '${favoriteIds.length}', tr('Избранное', 'Favorites'), purple)),
+          const SizedBox(width: 10),
+          Expanded(child: _statCard(Icons.shield_rounded, isConnected ? tr('Активен', 'Active') : tr('Ожидание', 'Idle'), tr('Защита', 'Protection'), green)),
+        ],
+      );
+
+  Widget _statCard(IconData icon, String value, String label, Color color) => Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(16), border: Border.all(color: border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 19),
+          const SizedBox(height: 10),
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 3),
+          Text(label, style: const TextStyle(fontSize: 10, color: muted)),
+        ]),
       );
 
   Widget _connectionCard() => Container(
@@ -660,7 +723,8 @@ class _NovaHomeState extends State<NovaHome> {
   Widget _serversPage() {
     final filtered = servers.where((s) {
       final q = search.toLowerCase();
-      return s.name.toLowerCase().contains(q) || s.country.toLowerCase().contains(q);
+      final matchesSearch = s.name.toLowerCase().contains(q) || s.country.toLowerCase().contains(q);
+      return matchesSearch && (!favoritesOnly || favoriteIds.contains(s.id));
     }).toList();
 
     return _pageContainer(
@@ -681,11 +745,21 @@ class _NovaHomeState extends State<NovaHome> {
             ),
           ),
           const SizedBox(height: 14),
+          Wrap(spacing: 8, children: [
+            FilterChip(selected: !favoritesOnly, label: Text(tr('Все серверы', 'All servers')), onSelected: (_) => setState(() => favoritesOnly = false)),
+            FilterChip(selected: favoritesOnly, avatar: const Icon(Icons.favorite, size: 16), label: Text(tr('Избранное', 'Favorites')), onSelected: (_) => setState(() => favoritesOnly = true)),
+          ]),
+          const SizedBox(height: 8),
           Row(
             children: [
               Text('${filtered.length} ${tr('серверов', 'servers')}',
                   style: const TextStyle(color: muted)),
               const Spacer(),
+              TextButton.icon(
+                onPressed: isLoading ? null : _selectQuickServer,
+                icon: const Icon(Icons.bolt_rounded, size: 17),
+                label: Text(tr('Автовыбор', 'Auto select')),
+              ),
               TextButton.icon(
                 onPressed: isLoading ? null : loadServers,
                 icon: const Icon(Icons.refresh, size: 17),
@@ -725,10 +799,15 @@ class _NovaHomeState extends State<NovaHome> {
         title: Text(server.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('${server.country} • ${server.protocol}',
             style: const TextStyle(color: muted, fontSize: 11)),
-        trailing: Icon(
-          selected ? Icons.radio_button_checked : Icons.radio_button_off,
-          color: selected ? blue : muted,
-        ),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+            tooltip: favoriteIds.contains(server.id) ? tr('Убрать из избранного', 'Remove favorite') : tr('В избранное', 'Add favorite'),
+            onPressed: () => _toggleFavorite(server),
+            icon: Icon(favoriteIds.contains(server.id) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: favoriteIds.contains(server.id) ? const Color(0xFFFF6B9A) : muted),
+          ),
+          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? blue : muted),
+        ]),
       ),
     );
   }
