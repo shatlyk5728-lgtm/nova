@@ -20,6 +20,15 @@ Future<void> main() async {
     anonKey: 'sb_publishable_jEd50a0qw2_J17qEVYiLxg_0Mfj68LX',
   );
 
+  // Create a passwordless guest account with a stable Supabase user ID.
+  if (Supabase.instance.client.auth.currentUser == null) {
+    try {
+      await Supabase.instance.client.auth.signInAnonymously();
+    } catch (e) {
+      debugPrint('Anonymous account creation failed: $e');
+    }
+  }
+
   await MMKV.initialize();
   await novaVpn.init();
 
@@ -131,13 +140,9 @@ class _NovaHomeState extends State<NovaHome> {
   }
 
   Future<void> _buyPremium() async {
-    if (currentUser == null) {
-      final signedIn = await _showAccountDialog();
-      if (signedIn != true || currentUser == null) return;
-    }
     await _openTelegram(tr(
-      'Здравствуйте! Хочу узнать, как получить Nova VPN Premium. Мой аккаунт: ${currentUser!.email ?? currentUser!.id}.',
-      'Hello! I would like to get Nova VPN Premium. My account: ${currentUser!.email ?? currentUser!.id}.',
+      'Здравствуйте! Хочу получить Nova VPN Premium. Мой ID: ${currentUser?.id ?? "не создан"}.',
+      'Hello! I would like Nova VPN Premium. My ID: ${currentUser?.id ?? "not created"}.',
     ));
   }
 
