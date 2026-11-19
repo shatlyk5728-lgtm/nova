@@ -320,16 +320,60 @@ class _NovaHomeState extends State<NovaHome> {
   Future<bool> _prepareWindowsService() async {
     if (!Platform.isWindows) return false;
 
+    final storageDir = await profileStorage.getStorageDirectory();
+    final helperConfigFile =
+        File('${storageDir.path}${Platform.pathSeparator}helper.json');
+    final expectedConfigPath = (await profileStorage.getUsingConfig()).path;
     final status = await novaVpn.queryServiceStatus();
-    if (status == WindowsServiceStatus.notInstalled) {
-      await novaVpn.installService(
-        serviceName: 'clash_sing_service',
-        displayName: windowsServiceDisplayName,
-        description: windowsServiceDescription,
-      );
-      return false;
+
+    // The Windows helper keeps its original helper.json after the service is
+    // installed. Older Nova builds wrote profile_*.json\using_config.json
+    // there, which remains broken even after Dart's ProfileStorage is fixed.
+    // Compare the persisted helper config with the current using_config path;
+    // if stale, reinstall the service so the plugin regenerates helper.json.
+    if (status != WindowsServiceStatus.notInstalled) {
+      String? installedConfigPath;
+      if (await helperConfigFile.exists()) {
+        try {
+          final decoded = jsonDecode(await helperConfigFile.readAsString());
+          if (decoded is Map<String, dynamic>) {
+            installedConfigPath = decoded['config']?.toString();
+          }
+        } catch (_) {
+          installedConfigPath = null;
+        }
+      }
+
+      if (installedConfigPath != expectedConfigPath) {
+        final removed = await novaVpn.uninstallService();
+        if (!removed) {
+          throw Exception(
+            'Не удалось переустановить службу sing-box. Запусти Nova от имени администратора и повтори подключение.',
+          );
+        }
+        if (await helperConfigFile.exists()) {
+          await helperConfigFile.delete();
+        }
+        final installed = await novaVpn.installService(
+          serviceName: 'clash_sing_service',
+          displayName: windowsServiceDisplayName,
+          description: windowsServiceDescription,
+        );
+        if (!installed) {
+          throw Exception('Не удалось обновить конфигурацию службы sing-box.');
+        }
+        return false;
+      }
+
+      return status == WindowsServiceStatus.running;
     }
-    return status == WindowsServiceStatus.running;
+
+    await novaVpn.installService(
+      serviceName: 'clash_sing_service',
+      displayName: windowsServiceDisplayName,
+      description: windowsServiceDescription,
+    );
+    return false;
   }
 
   Future<void> toggleConnection() async {
