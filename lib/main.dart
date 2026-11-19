@@ -397,7 +397,9 @@ class _NovaHomeState extends State<NovaHome> {
 
       await profileStorage.addProfile(profile, singBoxConfig);
       profileStorage.setSelectedProfile(id);
-      profileStorage.setUsingConfig(configPath);
+      // ProfileStorage.setUsingConfig expects a DIRECTORY, because the plugin
+      // appends "using_config.json" to it. configPath itself is profile_*.json.
+      profileStorage.setUsingConfig(File(configPath).parent.path);
 
       final windowsServiceAlreadyRunning = await _prepareWindowsService();
 
