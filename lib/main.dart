@@ -46,11 +46,11 @@ class NovaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF080B16),
+        scaffoldBackgroundColor: const Color(0xFF070A12),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF6575FF),
-          secondary: Color(0xFF9B72FF),
-          surface: Color(0xFF151A2B),
+          primary: Color(0xFF7C8CFF),
+          secondary: Color(0xFFB18CFF),
+          surface: Color(0xFF121A2B),
         ),
         useMaterial3: true,
       ),
@@ -94,11 +94,11 @@ class NovaHome extends StatefulWidget {
 }
 
 class _NovaHomeState extends State<NovaHome> {
-  static const Color bg = Color(0xFF080B16);
-  static const Color panel = Color(0xFF111729);
-  static const Color border = Color(0xFF252E49);
-  static const Color blue = Color(0xFF6575FF);
-  static const Color purple = Color(0xFF9B72FF);
+  static const Color bg = Color(0xFF070A12);
+  static const Color panel = Color(0xFF111827);
+  static const Color border = Color(0xFF27334A);
+  static const Color blue = Color(0xFF7C8CFF);
+  static const Color purple = Color(0xFFB18CFF);
   static const Color cyan = Color(0xFF45D7F5);
   static const Color green = Color(0xFF35D6A0);
   static const Color muted = Color(0xFF8993AD);
@@ -516,19 +516,26 @@ class _NovaHomeState extends State<NovaHome> {
   Widget build(BuildContext context) {
     final desktop = MediaQuery.of(context).size.width >= 850;
     return Scaffold(
-      body: SafeArea(
-        child: Row(
-          children: [
-            if (desktop) _sidebar(),
-            Expanded(
-              child: Column(
-                children: [
-                  _topBar(desktop),
-                  Expanded(child: _page()),
-                ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(center: Alignment.topRight, radius: 1.35,
+            colors: [Color(0xFF18264A), Color(0xFF0B1120), Color(0xFF070A12)],
+            stops: [0, .42, 1]),
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              if (desktop) _sidebar(),
+              Expanded(
+                child: Column(
+                  children: [
+                    _topBar(desktop),
+                    Expanded(child: _page()),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: desktop ? null : _bottomNav(),
@@ -561,10 +568,10 @@ class _NovaHomeState extends State<NovaHome> {
       );
 
   Widget _sidebar() => Container(
-        width: 235,
-        decoration: const BoxDecoration(
-          color: Color(0xFF0D1222),
-          border: Border(right: BorderSide(color: border)),
+        width: 248,
+        decoration: BoxDecoration(
+          color: const Color(0xDD0B1120),
+          border: Border(right: BorderSide(color: Colors.white.withOpacity(.07))),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,9 +608,9 @@ class _NovaHomeState extends State<NovaHome> {
   }
 
   Widget _topBar(bool desktop) => Container(
-        height: 72,
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: border))),
+        height: 78,
+        padding: const EdgeInsets.symmetric(horizontal: 26),
+        decoration: BoxDecoration(color: const Color(0x440D1528), border: Border(bottom: BorderSide(color: Colors.white.withOpacity(.06))),
         child: Row(
           children: [
             if (desktop)
@@ -647,7 +654,7 @@ class _NovaHomeState extends State<NovaHome> {
   }
 
   Widget _pageContainer(Widget child) => SingleChildScrollView(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.fromLTRB(26, 25, 26, 30),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1050),
@@ -715,8 +722,8 @@ class _NovaHomeState extends State<NovaHome> {
   ]);
 
   Widget _statCard(IconData icon, String value, String label, Color color) => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(16), border: Border.all(color: border)),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(color: const Color(0xCC151F32), borderRadius: BorderRadius.circular(19), border: Border.all(color: Colors.white.withOpacity(.075))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, color: color, size: 19),
           const SizedBox(height: 10),
@@ -755,12 +762,12 @@ class _NovaHomeState extends State<NovaHome> {
       onTap: toggleConnection,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        width: desktop ? 142 : 126, height: desktop ? 142 : 126,
+        width: desktop ? 158 : 142, height: desktop ? 158 : 142,
         decoration: BoxDecoration(shape: BoxShape.circle,
           gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
             colors: isConnected ? [green, const Color(0xFF138B82)] : [const Color(0xFF6878FF), const Color(0xFF9C69F5)]),
-          border: Border.all(color: Colors.white.withOpacity(.28), width: 5),
-          boxShadow: [BoxShadow(color: accent.withOpacity(.3), blurRadius: 35, spreadRadius: 4)]),
+          border: Border.all(color: Colors.white.withOpacity(.42), width: 6),
+          boxShadow: [BoxShadow(color: accent.withOpacity(.42), blurRadius: 48, spreadRadius: 7), BoxShadow(color: Colors.black.withOpacity(.22), blurRadius: 20, offset: const Offset(0, 12))]),
         child: Center(child: isConnecting
           ? const SizedBox(width: 38, height: 38, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
           : Icon(isConnected ? Icons.shield_rounded : Icons.power_settings_new_rounded, size: 58, color: Colors.white)),
@@ -768,11 +775,11 @@ class _NovaHomeState extends State<NovaHome> {
     );
     return Container(width: double.infinity, padding: EdgeInsets.all(desktop ? 26 : 21),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(30),
         gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xFF202B59), Color(0xFF171D3A), Color(0xFF211A40)]),
-        border: Border.all(color: accent.withOpacity(.35)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 24, offset: const Offset(0, 12))]),
+          colors: [Color(0xFF263967), Color(0xFF17233D), Color(0xFF292044)]),
+        border: Border.all(color: Colors.white.withOpacity(.12)),
+        boxShadow: [BoxShadow(color: accent.withOpacity(.13), blurRadius: 42, spreadRadius: 1, offset: const Offset(0, 16))]),
       child: desktop ? Row(children: [Expanded(child: details), const SizedBox(width: 14), power]) :
         Column(children: [details, const SizedBox(height: 22), power, const SizedBox(height: 17),
           Text(isConnected ? tr('Нажми, чтобы отключить', 'Tap to disconnect') : tr('Нажми для подключения', 'Tap to connect'),
@@ -784,8 +791,8 @@ class _NovaHomeState extends State<NovaHome> {
   }
 
   Widget _selectedServerCard() => Container(
-    padding: const EdgeInsets.all(17),
-    decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(20), border: Border.all(color: border)),
+    padding: const EdgeInsets.all(19),
+    decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF18243A), Color(0xFF111827)]), borderRadius: BorderRadius.circular(23), border: Border.all(color: Colors.white.withOpacity(.09)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(.13), blurRadius: 22, offset: const Offset(0, 10))]),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [const Icon(Icons.location_on_rounded, color: cyan, size: 17), const SizedBox(width: 7),
         Text(tr('ТЕКУЩАЯ ЛОКАЦИЯ', 'CURRENT LOCATION'), style: const TextStyle(color: muted, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
