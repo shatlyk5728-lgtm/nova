@@ -774,13 +774,11 @@ class _NovaHomeState extends State<NovaHome> {
         border: Border.all(color: accent.withOpacity(.35)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 24, offset: const Offset(0, 12))]),
       child: desktop ? Row(children: [Expanded(child: details), const SizedBox(width: 14), power]) :
-        Column(children: [Row(children: [Expanded(child: Align(alignment: Alignment.centerLeft, child: details.children.first)), const Icon(Icons.verified_user_rounded, color: cyan)]),
-          const SizedBox(height: 22), power, const SizedBox(height: 17),
+        Column(children: [details, const SizedBox(height: 22), power, const SizedBox(height: 17),
           Text(isConnected ? tr('Нажми, чтобы отключить', 'Tap to disconnect') : tr('Нажми для подключения', 'Tap to connect'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(tr('Одно нажатие — и ты в сети Nova', 'One tap to connect to Nova'), style: const TextStyle(color: muted, fontSize: 11)),
-          if (connectionError != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(connectionError!, style: const TextStyle(color: Color(0xFFFFB45C), fontSize: 10))),
         ]),
     );
   }
