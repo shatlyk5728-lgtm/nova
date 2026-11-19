@@ -610,7 +610,7 @@ class _NovaHomeState extends State<NovaHome> {
   Widget _topBar(bool desktop) => Container(
         height: 78,
         padding: const EdgeInsets.symmetric(horizontal: 26),
-        decoration: BoxDecoration(color: const Color(0x440D1528), border: Border(bottom: BorderSide(color: Colors.white.withOpacity(.06))),
+        decoration: BoxDecoration(color: const Color(0x440D1528), border: Border(bottom: BorderSide(color: Colors.white.withOpacity(.06)))),
         child: Row(
           children: [
             if (desktop)
