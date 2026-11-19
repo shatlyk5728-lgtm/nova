@@ -656,38 +656,63 @@ class _NovaHomeState extends State<NovaHome> {
         ),
       );
 
-  Widget _homePage() => _pageContainer(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(tr('Добро пожаловать в Nova', 'Welcome to Nova'),
-                style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 7),
-            Text(tr('Твой интернет. Твои правила.', 'Your internet. Your rules.'),
-                style: const TextStyle(color: muted)),
-            const SizedBox(height: 24),
-            _connectionCard(),
-            const SizedBox(height: 18),
-            _selectedServerCard(),
-            const SizedBox(height: 18),
-            _notice(),
-            const SizedBox(height: 18),
-            _accountAndPremium(),
-            const SizedBox(height: 18),
-            _quickStats(),
-          ],
+  Widget _homePage() {
+    final desktop = MediaQuery.of(context).size.width >= 850;
+    final intro = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr('ТВОЯ ЦИФРОВАЯ СВОБОДА', 'YOUR DIGITAL FREEDOM'),
+            style: const TextStyle(color: cyan, fontSize: 10, letterSpacing: 2.2, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(tr('Добро пожаловать в Nova', 'Welcome to Nova'),
+            style: TextStyle(fontSize: desktop ? 30 : 25, fontWeight: FontWeight.w900, letterSpacing: -.6)),
+          const SizedBox(height: 5),
+          Text(tr('Быстрое и безопасное подключение в один тап.', 'Fast and secure connection in one tap.'),
+            style: const TextStyle(color: muted, fontSize: 13)),
+        ])),
+        if (desktop) Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
+          child: Row(children: [const Icon(Icons.public_rounded, color: cyan, size: 17), const SizedBox(width: 8),
+            Text('${servers.length} ${tr('локаций', 'locations')}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12))]),
         ),
-      );
+      ],
+    );
+    return _pageContainer(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      intro,
+      const SizedBox(height: 24),
+      if (desktop) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(flex: 7, child: _connectionCard()),
+        const SizedBox(width: 16),
+        Expanded(flex: 4, child: Column(children: [
+          _selectedServerCard(),
+          const SizedBox(height: 14),
+          _quickStats(),
+          const SizedBox(height: 14),
+          _notice(),
+        ])),
+      ]) else ...[
+        _connectionCard(),
+        const SizedBox(height: 14),
+        _selectedServerCard(),
+        const SizedBox(height: 14),
+        _quickStats(),
+        const SizedBox(height: 14),
+        _notice(),
+      ],
+      const SizedBox(height: 20),
+      _accountAndPremium(),
+    ]));
+  }
 
-  Widget _quickStats() => Row(
-        children: [
-          Expanded(child: _statCard(Icons.public_rounded, '${servers.length}', tr('Серверов', 'Servers'), cyan)),
-          const SizedBox(width: 10),
-          Expanded(child: _statCard(Icons.favorite_rounded, '${favoriteIds.length}', tr('Избранное', 'Favorites'), purple)),
-          const SizedBox(width: 10),
-          Expanded(child: _statCard(Icons.shield_rounded, isConnected ? tr('Активен', 'Active') : tr('Ожидание', 'Idle'), tr('Защита', 'Protection'), green)),
-        ],
-      );
+  Widget _quickStats() => Row(children: [
+    Expanded(child: _statCard(Icons.public_rounded, '${servers.length}', tr('Серверы', 'Servers'), cyan)),
+    const SizedBox(width: 9),
+    Expanded(child: _statCard(Icons.favorite_rounded, '${favoriteIds.length}', tr('Избранное', 'Favorites'), purple)),
+    const SizedBox(width: 9),
+    Expanded(child: _statCard(Icons.shield_rounded, isConnected ? tr('ON', 'ON') : tr('OFF', 'OFF'), tr('Защита', 'Protection'), isConnected ? green : muted)),
+  ]);
 
   Widget _statCard(IconData icon, String value, String label, Color color) => Container(
         padding: const EdgeInsets.all(13),
@@ -701,130 +726,108 @@ class _NovaHomeState extends State<NovaHome> {
         ]),
       );
 
-  Widget _connectionCard() => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF202B59), Color(0xFF171D3A), Color(0xFF241A45)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: blue.withOpacity(.4)),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.circle, size: 9, color: isConnected ? green : muted),
-                const SizedBox(width: 9),
-                Text(
-                  isConnecting
-                      ? tr('ПОДКЛЮЧЕНИЕ...', 'CONNECTING...')
-                      : isConnected
-                          ? tr('ЗАЩИЩЁННОЕ ПОДКЛЮЧЕНИЕ', 'VPN CONNECTED')
-                          : tr('НЕ ПОДКЛЮЧЕНО', 'NOT CONNECTED'),
-                  style: const TextStyle(fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                const Icon(Icons.shield_rounded, color: cyan),
-              ],
-            ),
-            const SizedBox(height: 25),
-            GestureDetector(
-              onTap: toggleConnection,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 138,
-                height: 138,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: isConnected ? [green, const Color(0xFF168C83)] : [blue, purple],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isConnected ? green : blue).withOpacity(.35),
-                      blurRadius: 32,
-                      spreadRadius: 6,
-                    ),
-                  ],
-                  border: Border.all(color: Colors.white24, width: 5),
-                ),
-                child: Center(
-                  child: isConnecting
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Icon(Icons.power_settings_new_rounded, size: 62, color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              isConnected
-                  ? tr('VPN подключён', 'VPN connected')
-                  : isConnecting
-                      ? tr('Подключаемся...', 'Connecting...')
-                      : tr('Нажми для подключения', 'Tap to connect'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              currentServer == null
-                  ? tr('Сервер не выбран', 'No server selected')
-                  : '${currentServer!.flag} ${currentServer!.name}',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            if (connectionError != null) ...[
-              const SizedBox(height: 12),
-              Text(connectionError!, style: const TextStyle(color: Colors.orange, fontSize: 11)),
-            ],
-          ],
-        ),
-      );
+  Widget _connectionCard() {
+    final desktop = MediaQuery.of(context).size.width >= 850;
+    final accent = isConnected ? green : blue;
+    final details = Column(crossAxisAlignment: desktop ? CrossAxisAlignment.start : CrossAxisAlignment.center, children: [
+      Row(mainAxisSize: desktop ? MainAxisSize.max : MainAxisSize.min, children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: isConnecting ? const Color(0xFFFFC66D) : accent, shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: accent.withOpacity(.6), blurRadius: 9)])),
+        const SizedBox(width: 9),
+        Text(isConnecting ? tr('СОЕДИНЯЕМСЯ', 'CONNECTING') : isConnected ? tr('ТЫ ПОД ЗАЩИТОЙ', 'YOU ARE PROTECTED') : tr('ЗАЩИТА ОТКЛЮЧЕНА', 'PROTECTION OFF'),
+          style: const TextStyle(fontSize: 10, letterSpacing: 1.7, fontWeight: FontWeight.w900)),
+      ]),
+      const SizedBox(height: 20),
+      Text(isConnected ? tr('Соединение активно', 'Connection is active') : isConnecting ? tr('Устанавливаем связь', 'Establishing connection') : tr('Твой интернет.\nТвои правила.', 'Your internet.\nYour rules.'),
+        textAlign: desktop ? TextAlign.left : TextAlign.center,
+        style: TextStyle(fontSize: desktop ? 27 : 24, height: 1.12, fontWeight: FontWeight.w900, letterSpacing: -.5)),
+      const SizedBox(height: 10),
+      Text(currentServer == null ? tr('Выбери сервер, чтобы начать.', 'Choose a server to get started.') : '${currentServer!.flag}  ${currentServer!.name}  ·  ${currentServer!.protocol}',
+        textAlign: desktop ? TextAlign.left : TextAlign.center,
+        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      if (connectionError != null) ...[
+        const SizedBox(height: 12),
+        Text(connectionError!, maxLines: 3, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Color(0xFFFFB45C), fontSize: 10, height: 1.4)),
+      ],
+    ]);
+    final power = GestureDetector(
+      onTap: toggleConnection,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: desktop ? 142 : 126, height: desktop ? 142 : 126,
+        decoration: BoxDecoration(shape: BoxShape.circle,
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: isConnected ? [green, const Color(0xFF138B82)] : [const Color(0xFF6878FF), const Color(0xFF9C69F5)]),
+          border: Border.all(color: Colors.white.withOpacity(.28), width: 5),
+          boxShadow: [BoxShadow(color: accent.withOpacity(.3), blurRadius: 35, spreadRadius: 4)]),
+        child: Center(child: isConnecting
+          ? const SizedBox(width: 38, height: 38, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
+          : Icon(isConnected ? Icons.shield_rounded : Icons.power_settings_new_rounded, size: 58, color: Colors.white)),
+      ),
+    );
+    return Container(width: double.infinity, padding: EdgeInsets.all(desktop ? 26 : 21),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25),
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color(0xFF202B59), Color(0xFF171D3A), Color(0xFF211A40)]),
+        border: Border.all(color: accent.withOpacity(.35)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.18), blurRadius: 24, offset: const Offset(0, 12))]),
+      child: desktop ? Row(children: [Expanded(child: details), const SizedBox(width: 14), power]) :
+        Column(children: [Row(children: [Expanded(child: Align(alignment: Alignment.centerLeft, child: details.children.first)), const Icon(Icons.verified_user_rounded, color: cyan)]),
+          const SizedBox(height: 22), power, const SizedBox(height: 17),
+          Text(isConnected ? tr('Нажми, чтобы отключить', 'Tap to disconnect') : tr('Нажми для подключения', 'Tap to connect'),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(tr('Одно нажатие — и ты в сети Nova', 'One tap to connect to Nova'), style: const TextStyle(color: muted, fontSize: 11)),
+          if (connectionError != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(connectionError!, style: const TextStyle(color: Color(0xFFFFB45C), fontSize: 10))),
+        ]),
+    );
+  }
 
   Widget _selectedServerCard() => Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: panel,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: border),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.public_rounded, color: cyan),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                currentServer == null
-                    ? tr('Сервер не выбран', 'No server selected')
-                    : '${currentServer!.flag}  ${currentServer!.name} • ${currentServer!.protocol}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            TextButton(
-              onPressed: () => setState(() => selectedPage = 1),
-              child: Text(tr('Изменить', 'Change')),
-            ),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.all(17),
+    decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(20), border: Border.all(color: border)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [const Icon(Icons.location_on_rounded, color: cyan, size: 17), const SizedBox(width: 7),
+        Text(tr('ТЕКУЩАЯ ЛОКАЦИЯ', 'CURRENT LOCATION'), style: const TextStyle(color: muted, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
+        const Spacer(), Icon(Icons.bolt_rounded, color: purple, size: 16)]),
+      const SizedBox(height: 13),
+      Row(children: [
+        Container(width: 45, height: 45, alignment: Alignment.center,
+          decoration: BoxDecoration(color: blue.withOpacity(.13), borderRadius: BorderRadius.circular(14)),
+          child: Text(currentServer?.flag ?? '🌐', style: const TextStyle(fontSize: 25))),
+        const SizedBox(width: 11),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(currentServer?.name ?? tr('Сервер не выбран', 'No server selected'), maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          const SizedBox(height: 3),
+          Text(currentServer == null ? tr('Выбери доступную локацию', 'Choose an available location') : '${currentServer!.country} · ${currentServer!.protocol}',
+            maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: muted, fontSize: 10)),
+        ])),
+      ]),
+      const SizedBox(height: 13),
+      SizedBox(width: double.infinity, child: OutlinedButton.icon(
+        onPressed: () => setState(() => selectedPage = 1), icon: const Icon(Icons.swap_horiz_rounded, size: 17),
+        label: Text(tr('Выбрать другой сервер', 'Change server')),
+        style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      )),
+    ]),
+  );
 
   Widget _notice() => Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: cyan.withOpacity(.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cyan.withOpacity(.18)),
-        ),
-        child: Text(
-          tr(
-            'Nova использует sing-box. Статус подключения отображается по состоянию VPN-движка. Доступность сервера зависит от его конфигурации и сети.',
-            'Nova uses sing-box. Connection status reflects the VPN engine state. Server availability depends on its configuration and network.',
-          ),
-          style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.5),
-        ),
-      );
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(color: cyan.withOpacity(.055), borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: cyan.withOpacity(.16))),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Icon(Icons.info_outline_rounded, color: cyan, size: 18),
+      const SizedBox(width: 10),
+      Expanded(child: Text(tr(
+        'Nova использует защищённое соединение sing-box. Статус меняется только после ответа VPN-движка.',
+        'Nova uses the sing-box secure tunnel. Status changes only after confirmation from the VPN engine.',
+      ), style: const TextStyle(color: Colors.white70, fontSize: 10, height: 1.5))),
+    ]),
+  );
 
   Widget _serversPage() {
     final filtered = servers.where((s) {
