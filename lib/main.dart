@@ -888,67 +888,88 @@ class _NovaHomeState extends State<NovaHome> {
   Widget _serverTile(NovaServer server) {
     final index = servers.indexOf(server);
     final selected = selectedServer == index;
-    return Card(
-      color: selected ? blue.withOpacity(.14) : panel,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: selected ? blue : border),
-      ),
-      child: ListTile(
-        onTap: () {
-          if (isConnected || isConnecting) {
-            _message(tr('Сначала отключи VPN', 'Disconnect VPN first'));
-            return;
-          }
-          setState(() => selectedServer = index);
-        },
-        leading: Text(server.flag, style: const TextStyle(fontSize: 29)),
-        title: Text(server.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${server.country} • ${server.protocol}',
-            style: const TextStyle(color: muted, fontSize: 11)),
-        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          IconButton(
-            tooltip: favoriteIds.contains(server.id) ? tr('Убрать из избранного', 'Remove favorite') : tr('В избранное', 'Add favorite'),
-            onPressed: () => _toggleFavorite(server),
-            icon: Icon(favoriteIds.contains(server.id) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: favoriteIds.contains(server.id) ? const Color(0xFFFF6B9A) : muted),
+    final favorite = favoriteIds.contains(server.id);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            if (isConnected || isConnecting) {
+              _message(tr('Сначала отключи VPN', 'Disconnect VPN first'));
+              return;
+            }
+            setState(() => selectedServer = index);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFF202B50) : panel,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: selected ? blue.withOpacity(.8) : border),
+              boxShadow: selected ? [BoxShadow(color: blue.withOpacity(.10), blurRadius: 18)] : const [],
+            ),
+            child: Row(children: [
+              Container(width: 46, height: 46, alignment: Alignment.center,
+                decoration: BoxDecoration(color: selected ? blue.withOpacity(.18) : Colors.white.withOpacity(.045), borderRadius: BorderRadius.circular(14)),
+                child: Text(server.flag, style: const TextStyle(fontSize: 26))),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(server.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text('${server.country}  ·  ${server.protocol.toUpperCase()}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: muted, fontSize: 10, letterSpacing: .4)),
+              ])),
+              IconButton(
+                tooltip: favorite ? tr('Убрать из избранного', 'Remove favorite') : tr('В избранное', 'Add favorite'),
+                onPressed: () => _toggleFavorite(server),
+                icon: Icon(favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: favorite ? const Color(0xFFFF6B9A) : muted, size: 19),
+              ),
+              const SizedBox(width: 3),
+              Icon(selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: selected ? cyan : const Color(0xFF56617C), size: 21),
+            ]),
           ),
-          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? blue : muted),
-        ]),
+        ),
       ),
     );
   }
 
-  Widget _settingsPage() => _pageContainer(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(tr('Настройки', 'Settings'),
-                style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 18),
-            Container(
-              decoration: BoxDecoration(
-                color: panel,
-                borderRadius: BorderRadius.circular(17),
-                border: Border.all(color: border),
-              ),
-              child: SwitchListTile(
-                title: Text(tr('Язык интерфейса', 'Interface language')),
-                subtitle: Text(isRussian ? 'Русский' : 'English'),
-                value: isRussian,
-                onChanged: (v) => setState(() => isRussian = v),
-              ),
-            ),
-            const SizedBox(height: 15),
-            _accountAndPremium(),
-            const SizedBox(height: 15),
-            _notice(),
-            const SizedBox(height: 20),
-            const Center(
-              child: Text('NOVA VPN • VERSION 1.0.0',
-                  style: TextStyle(color: muted, fontSize: 10, letterSpacing: 1)),
-            ),
-          ],
-        ),
-      );
+  Widget _settingsPage() => _pageContainer(Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(tr('Настройки', 'Settings'), style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 6),
+      Text(tr('Настрой Nova под себя.', 'Make Nova work your way.'), style: const TextStyle(color: muted, fontSize: 12)),
+      const SizedBox(height: 22),
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(19), border: Border.all(color: border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr('ПРЕДПОЧТЕНИЯ', 'PREFERENCES'), style: const TextStyle(color: cyan, fontSize: 9, letterSpacing: 1.8, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 9),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: Container(width: 38, height: 38, decoration: BoxDecoration(color: blue.withOpacity(.14), borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.translate_rounded, color: blue, size: 19)),
+            title: Text(tr('Язык интерфейса', 'Interface language'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            subtitle: Text(isRussian ? 'Русский' : 'English', style: const TextStyle(color: muted, fontSize: 11)),
+            value: isRussian,
+            onChanged: (v) => setState(() => isRussian = v),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 14),
+      _accountAndPremium(),
+      const SizedBox(height: 14),
+      _notice(),
+      const SizedBox(height: 22),
+      const Center(child: Text('NOVA VPN  ·  VERSION 1.0.0', style: TextStyle(color: muted, fontSize: 10, letterSpacing: 1.5))),
+    ],
+  ));
+
 }
